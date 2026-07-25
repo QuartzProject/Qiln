@@ -9,5 +9,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(QilnOptions)
 include(QilnQuartz)
 
+add_subdirectory(src)
+
 enable_testing()
 add_subdirectory(tests)
