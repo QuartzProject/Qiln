@@ -1,0 +1,21 @@
+option(QILN_WERROR "Treat warnings as errors" OFF)
+set(QILN_SANITIZE "" CACHE STRING "Comma separated sanitizers (address,undefined)")
+
+find_program(QILN_CCACHE ccache)
+if(QILN_CCACHE)
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${QILN_CCACHE})
+    set(CMAKE_C_COMPILER_LAUNCHER ${QILN_CCACHE})
+endif()
+
+add_library(qiln_options INTERFACE)
+target_compile_features(qiln_options INTERFACE cxx_std_23)
+# The same rules as the Quartz core: no FMA contraction, no RTTI.
+target_compile_options(qiln_options INTERFACE -ffp-contract=off -fno-rtti -Wall -Wextra -Wpedantic -Wshadow
+    -Wconversion -Wno-sign-conversion -Wnon-virtual-dtor -Wimplicit-fallthrough)
+if(QILN_WERROR)
+    target_compile_options(qiln_options INTERFACE -Werror)
+endif()
+if(QILN_SANITIZE)
+    target_compile_options(qiln_options INTERFACE -fsanitize=${QILN_SANITIZE} -fno-omit-frame-pointer)
+    target_link_options(qiln_options INTERFACE -fsanitize=${QILN_SANITIZE})
+endif()

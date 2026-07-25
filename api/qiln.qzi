@@ -1,0 +1,108 @@
+package org.quartzlang.qiln
+
+/// What a project produces: a source library, a runnable program, a host plugin or a Qiln build plugin.
+pub enum Kind {
+    Library
+    Application
+    Plugin
+    BuildPlugin
+}
+
+/// The workspace that `settings.qz` describes.
+@handle
+struct Settings {}
+
+impl Settings {
+    @property
+    fn name(self) -> str
+    fn setName(self, value: str)
+    /// Adds the project in `path`, relative to the workspace root and `/` separated.
+    fn include(self, path: str)
+    /// Uses the build plugin whose sources are in `path` instead of resolving it from a repository.
+    fn includePlugin(self, path: str)
+    fn addPluginRepository(self, name: str, url: str)
+    fn addPlugin(self, notation: str)
+    /// A `-Pkey=value` from the command line.
+    fn property(self, key: str) -> str?
+}
+
+/// One project of the workspace, as its `build.qz` configures it.
+@handle
+struct Project {}
+
+impl Project {
+    /// `:` for the root project, `:core` for the project in `core/`.
+    @property
+    fn path(self) -> str
+    @property
+    fn name(self) -> str
+    fn setName(self, value: str)
+    @property
+    fn group(self) -> str
+    fn setGroup(self, value: str)
+    @property
+    fn version(self) -> str
+    fn setVersion(self, value: str)
+    @property
+    fn description(self) -> str
+    fn setDescription(self, value: str)
+    @property
+    fn kind(self) -> Kind
+    fn setKind(self, value: Kind)
+    /// The function `qiln run` starts.
+    @property
+    fn entry(self) -> str
+    fn setEntry(self, value: str)
+    @property
+    fn denyWarnings(self) -> bool
+    fn setDenyWarnings(self, value: bool)
+    /// Compile only against the declared host interfaces, without the runner's `print`.
+    @property
+    fn hostOnly(self) -> bool
+    fn setHostOnly(self, value: bool)
+    /// The group and the name joined by a dot, like `org.example.greeter`.
+    @property
+    fn packageName(self) -> str
+    /// Adds a source directory to `main` or `test`; without any, they are `src` and `test`.
+    fn sourceDir(self, sourceSet: str, dir: str)
+    /// A `.qzi` of the host the package runs in.
+    fn hostInterface(self, path: str)
+    fn addRepository(self, name: str, url: str)
+    /// Where `qiln publish` writes this project's versions.
+    fn addPublishRepository(self, name: str, url: str)
+    fn addDependency(self, configuration: str, notation: str)
+    /// A function other packages may call when this is a host plugin.
+    fn addExport(self, function: str)
+    fn addCapability(self, name: str)
+    fn setLimits(self, fuel: int, memoryMiB: int, maxDepth: int)
+    /// The task called `name`, created on first use.
+    fn task(self, name: str) -> Task
+    /// Records that a build plugin requested in `settings.qz` configures this project.
+    fn applyPlugin(self, plugin: str)
+    fn hasPlugin(self, plugin: str) -> bool
+    fn property(self, key: str) -> str?
+    /// A project option plugin tasks read when their own task has none of that name.
+    fn option(self, key: str, value: str)
+}
+
+/// A unit of work `qiln <task>` runs once its dependencies have run.
+@handle
+struct Task {}
+
+impl Task {
+    @property
+    fn name(self) -> str
+    @property
+    fn description(self) -> str
+    fn setDescription(self, value: str)
+    @property
+    fn group(self) -> str
+    fn setGroup(self, value: str)
+    fn dependsOn(self, task: str)
+    /// Runs the exported `function` of the build plugin `plugin` in that plugin's own sandbox.
+    fn action(self, plugin: str, function: str)
+    fn option(self, key: str, value: str)
+}
+
+/// Prints a line while the script runs; a cached configuration does not print it again.
+fn log(message: str)

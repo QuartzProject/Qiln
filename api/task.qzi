@@ -1,0 +1,37 @@
+package org.quartzlang.qiln.task
+
+/// What a plugin task sees: the project's files to read, and its build directory to write.
+@handle
+struct TaskContext {}
+
+impl TaskContext {
+    /// The name of the task being run.
+    @property
+    fn name(self) -> str
+    @property
+    fn projectPath(self) -> str
+    @property
+    fn projectName(self) -> str
+    @property
+    fn projectVersion(self) -> str
+    @property
+    fn packageName(self) -> str
+    /// Where `build` wrote the project's artifact, relative to the build directory.
+    @property
+    fn artifact(self) -> str
+    /// The task's option, else the project's option of that name.
+    fn option(self, key: str) -> str?
+    /// The main source files, relative to the project directory.
+    fn sources(self) -> [str]
+    /// Paths are relative to the project directory and may not leave it.
+    fn exists(self, path: str) -> bool
+    fn readText(self, path: str) -> str?
+    fn readBytes(self, path: str) -> Bytes?
+    /// Paths are relative to the build directory and may not leave it.
+    fn readBuild(self, path: str) -> Bytes?
+    fn writeBuild(self, path: str, data: Bytes) -> bool
+    fn writeBuildText(self, path: str, text: str) -> bool
+}
+
+/// Prints a line under the task's name.
+fn log(message: str)

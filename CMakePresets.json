@@ -1,0 +1,38 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    { "name": "debug", "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
+    {
+      "name": "release",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QILN_WERROR": "ON" }
+    },
+    {
+      "name": "asan",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "QILN_SANITIZE": "address,undefined" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug", "targets": ["qiln", "qiln-tests"] },
+    { "name": "release", "configurePreset": "release", "targets": ["qiln", "qiln-tests"] },
+    { "name": "asan", "configurePreset": "asan", "targets": ["qiln", "qiln-tests"] }
+  ],
+  "testPresets": [
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true }, "filter": { "include": { "label": "qiln" } } },
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true }, "filter": { "include": { "label": "qiln" } } },
+    { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true }, "filter": { "include": { "label": "qiln" } } }
+  ]
+}

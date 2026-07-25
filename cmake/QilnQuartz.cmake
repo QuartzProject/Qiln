@@ -1,0 +1,36 @@
+# The Quartz core, from a checkout (QILN_QUARTZ_SOURCE, built here) or from an installed package (find_package).
+# Qiln links the C++ library `quartz` plus the zstd and Monocypher libraries the core already vendors.
+set(QILN_QUARTZ_SOURCE "${PROJECT_SOURCE_DIR}/../Quartz" CACHE PATH
+    "A Quartz checkout to build the core from; empty uses an installed Quartz package")
+
+# The shared CI workflow checks the core out and passes QUARTZ_SOURCE_DIR, the name Embed uses too.
+if(QUARTZ_SOURCE_DIR)
+    set(QILN_QUARTZ_SOURCE "${QUARTZ_SOURCE_DIR}" CACHE PATH "" FORCE)
+endif()
+
+if(QILN_QUARTZ_SOURCE AND EXISTS "${QILN_QUARTZ_SOURCE}/CMakeLists.txt")
+    if(QILN_SANITIZE)
+        set(QUARTZ_SANITIZE "${QILN_SANITIZE}" CACHE STRING "" FORCE)
+    endif()
+    add_subdirectory("${QILN_QUARTZ_SOURCE}" "${CMAKE_BINARY_DIR}/quartz" EXCLUDE_FROM_ALL SYSTEM)
+    get_directory_property(QILN_QUARTZ_VERSION DIRECTORY "${QILN_QUARTZ_SOURCE}" DEFINITION Quartz_VERSION)
+    add_library(qiln_quartz INTERFACE)
+    target_link_libraries(qiln_quartz INTERFACE quartz quartz_zstd quartz_monocypher)
+    message(STATUS "Qiln: Quartz ${QILN_QUARTZ_VERSION} from ${QILN_QUARTZ_SOURCE}")
+else()
+    find_package(Quartz CONFIG REQUIRED)
+    set(QILN_QUARTZ_VERSION "${Quartz_VERSION}")
+    add_library(qiln_quartz INTERFACE)
+    foreach(candidate Quartz::quartz quartz::quartz)
+        if(TARGET ${candidate})
+            target_link_libraries(qiln_quartz INTERFACE ${candidate})
+            break()
+        endif()
+    endforeach()
+    foreach(candidate Quartz::zstd Quartz::monocypher)
+        if(TARGET ${candidate})
+            target_link_libraries(qiln_quartz INTERFACE ${candidate})
+        endif()
+    endforeach()
+    message(STATUS "Qiln: installed Quartz ${QILN_QUARTZ_VERSION}")
+endif()

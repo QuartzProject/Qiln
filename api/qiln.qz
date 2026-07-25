@@ -1,0 +1,118 @@
+package org.quartzlang.qiln
+
+/// Where packages come from: a directory, a `file://` URL or an `https://` Maven repository.
+pub struct Repository {
+    url: str
+    name: str = ""
+}
+
+impl Repository {
+    /// A repository directory, relative to the project that declares it.
+    pub fn local(path: str) -> Repository {
+        return Repository(path, name = "local")
+    }
+
+    pub fn maven(url: str, name: str = "") -> Repository {
+        return Repository(url, name = name)
+    }
+
+    /// The public repository at repo.quartzlang.org.
+    pub fn quartz() -> Repository {
+        return Repository("https://repo.quartzlang.org/releases", name = "quartz")
+    }
+}
+
+/// A package (`org.example.text:^1.2`) or a project of the workspace (`:core`) and what it is needed for.
+pub struct Dependency {
+    notation: str
+    configuration: str = "implementation"
+}
+
+/// Compiled into the package and into everything that uses it.
+pub fn implementation(notation: str) -> Dependency {
+    return Dependency(notation)
+}
+
+/// Only compiled into the tests.
+pub fn testImplementation(notation: str) -> Dependency {
+    return Dependency(notation, configuration = "test")
+}
+
+/// The project at `path` of the workspace, like `:core`.
+pub fn project(path: str) -> Dependency {
+    return Dependency(path)
+}
+
+/// The sandbox budget of `qiln run` and `qiln test`.
+pub struct Limits {
+    fuel: int = 100000000
+    memoryMiB: int = 64
+    maxDepth: int = 4096
+}
+
+impl Project {
+    pub fn repository(self, r: Repository) {
+        self.addRepository(r.name, r.url)
+    }
+
+    pub fn repositories(self, rs: [Repository]) {
+        for r in rs {
+            self.repository(r)
+        }
+    }
+
+    pub fn publishTo(self, r: Repository) {
+        self.addPublishRepository(r.name, r.url)
+    }
+
+    pub fn dependency(self, d: Dependency) {
+        self.addDependency(d.configuration, d.notation)
+    }
+
+    pub fn dependencies(self, ds: [Dependency]) {
+        for d in ds {
+            self.dependency(d)
+        }
+    }
+
+    pub fn exports(self, functions: [str]) {
+        for f in functions {
+            self.addExport(f)
+        }
+    }
+
+    pub fn capabilities(self, names: [str]) {
+        for c in names {
+            self.addCapability(c)
+        }
+    }
+
+    pub fn limits(self, l: Limits) {
+        self.setLimits(l.fuel, l.memoryMiB, l.maxDepth)
+    }
+}
+
+impl Settings {
+    pub fn includeAll(self, paths: [str]) {
+        for p in paths {
+            self.include(p)
+        }
+    }
+
+    pub fn pluginRepository(self, r: Repository) {
+        self.addPluginRepository(r.name, r.url)
+    }
+
+    /// A build plugin from the plugin repositories, like `org.example.bundle:^1.0`.
+    pub fn plugin(self, notation: str) {
+        self.addPlugin(notation)
+    }
+}
+
+impl Task {
+    pub fn dependsOnAll(self, tasks: [str]) {
+        for t in tasks {
+            self.dependsOn(t)
+        }
+    }
+}

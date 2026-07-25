@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Compiled modules and archives: never diffed or normalized.
+*.qzb binary
+*.qzs binary
