@@ -18,7 +18,7 @@ impl Settings {
     fn setName(self, value: str)
     /// Adds the project in `path`, relative to the workspace root and `/` separated.
     fn include(self, path: str)
-    /// Uses the build plugin whose sources are in `path` instead of resolving it from a repository.
+    /// Uses the build plugin whose sources are in `path` (may start with `../`) instead of a published one.
     fn includePlugin(self, path: str)
     fn addPluginRepository(self, name: str, url: str)
     fn addPlugin(self, notation: str)

@@ -217,7 +217,12 @@ bool applyPlugin(HostCall& call, void* user) {
     std::string name = text(call, 1);
     const auto& requested = *context(user).requested;
     if (std::find(requested.begin(), requested.end(), name) == requested.end()) {
-        return fail(call, std::format("build plugin {} is not requested in settings.qz", name));
+        std::string list;
+        for (const std::string& r : requested) {
+            list += (list.empty() ? "" : ", ") + r;
+        }
+        return fail(call, std::format("build plugin {} is not requested in settings.qz (requested: {})", name,
+                                      list.empty() ? "none" : list));
     }
     auto& plugins = project(call, user).plugins;
     if (std::find(plugins.begin(), plugins.end(), name) == plugins.end()) {

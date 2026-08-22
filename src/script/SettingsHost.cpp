@@ -39,8 +39,12 @@ bool settingsInclude(HostCall& call, void* user) {
 
 bool settingsIncludePlugin(HostCall& call, void* user) {
     std::string path(str(call, 1));
-    if (!safeRelativePath(path)) {
-        return fail(call, std::format("'{}' is not a relative directory", path));
+    std::string_view rest = path;
+    while (rest.starts_with("../")) {
+        rest.remove_prefix(3);
+    }
+    if (!safeRelativePath(rest)) {
+        return fail(call, std::format("'{}' is not a relative directory like plugins/bundle or ../bundle", path));
     }
     auto& plugins = context(user).workspace->plugins;
     if (std::none_of(plugins.begin(), plugins.end(), [&](const PluginRequest& p) { return p.dir == path; })) {
