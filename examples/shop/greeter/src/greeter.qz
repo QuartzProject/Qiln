@@ -1,0 +1,12 @@
+package org.example.shop.greeter
+
+import org.example.server.broadcast
+import org.example.shop.core.welcome
+
+pub fn greeting(name: str) -> str {
+    return welcome(name)
+}
+
+pub fn onJoin(name: str) {
+    broadcast(greeting(name))
+}

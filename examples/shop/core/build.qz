@@ -1,0 +1,7 @@
+import org.quartzlang.qiln.*
+
+fn build(p: Project) {
+    p.group = "org.example.shop"
+    p.version = "1.0.0"
+    p.description = "Prices and greetings shared by the shop's programs"
+}

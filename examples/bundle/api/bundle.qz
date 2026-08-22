@@ -1,0 +1,23 @@
+package org.example.bundle
+
+import org.quartzlang.qiln.*
+
+/// How `qiln bundle` packages a host plugin.
+pub struct Bundle {
+    manifest: str = "plugin.toml"
+    extension: str = "bundle"
+    level: int = 9
+}
+
+/// Adds a `bundle` task: validates the manifest, then zips it with the compiled module.
+pub fn bundle(p: Project, b: Bundle = Bundle()) {
+    p.applyPlugin("org.example.bundle")
+    let t = p.task("bundle")
+    t.description = "Validates {b.manifest} and packs it with the module into build/distributions"
+    t.group = "distribution"
+    t.dependsOn("build")
+    t.action("org.example.bundle", "bundle")
+    t.option("manifest", b.manifest)
+    t.option("extension", b.extension)
+    t.option("level", "{b.level}")
+}

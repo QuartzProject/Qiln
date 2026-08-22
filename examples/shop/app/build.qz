@@ -1,0 +1,9 @@
+import org.quartzlang.qiln.*
+
+fn build(p: Project) {
+    p.group = "org.example.shop"
+    p.version = "1.0.0"
+    p.kind = Kind.Application
+    p.dependency(project(":core"))
+    p.limits(Limits(fuel = 10000000, memoryMiB = 16))
+}

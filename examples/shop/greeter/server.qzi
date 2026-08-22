@@ -1,0 +1,4 @@
+package org.example.server
+
+/// Sends a line to every player.
+fn broadcast(text: str)

@@ -1,0 +1,53 @@
+# Copies examples/ into WORK and drives QILN over them: the multi-project build, the bundle plugin from its sources
+# and the same plugin published and resolved from a repository.
+file(REMOVE_RECURSE "${WORK}")
+file(COPY "${EXAMPLES}/" DESTINATION "${WORK}" PATTERN build EXCLUDE PATTERN .qiln EXCLUDE PATTERN qiln.lock EXCLUDE)
+
+function(qiln dir)
+    execute_process(COMMAND "${QILN}" ${ARGN} WORKING_DIRECTORY "${WORK}/${dir}" RESULT_VARIABLE code
+        OUTPUT_VARIABLE out ERROR_VARIABLE err)
+    if(NOT code EQUAL 0)
+        message(FATAL_ERROR "qiln ${ARGN} in ${dir} exited with ${code}\n${out}\n${err}")
+    endif()
+    set(out "${out}" PARENT_SCOPE)
+endfunction()
+
+function(expect text)
+    string(FIND "${out}" "${text}" at)
+    if(at EQUAL -1)
+        message(FATAL_ERROR "expected '${text}' in:\n${out}")
+    endif()
+endfunction()
+
+file(WRITE "$ENV{QILN_HOME}/signing.key" "0707070707070707070707070707070707070707070707070707070707070707\n")
+
+qiln(shop test)
+expect("ok      showsCents")
+expect("ok      greetsByName")
+qiln(shop :app:run)
+expect("Today's special costs 4.99 EUR")
+qiln(shop bundle)
+expect("wrote build/distributions/greeter-1.0.0.bundle")
+file(ARCHIVE_EXTRACT INPUT "${WORK}/shop/greeter/build/distributions/greeter-1.0.0.bundle"
+    DESTINATION "${WORK}/unpacked")
+file(READ "${WORK}/unpacked/META-INF/BUNDLE" index)
+file(SHA256 "${WORK}/unpacked/plugin.qzb" digest)
+string(FIND "${index}" "sha256=${digest}" at)
+if(at EQUAL -1)
+    message(FATAL_ERROR "the bundle index does not hold the module's digest:\n${index}")
+endif()
+
+qiln(bundle publish)
+expect("published org.example.bundle 1.0.0 (build-plugin")
+file(READ "${WORK}/shop/settings.qz" settings)
+string(REPLACE "s.includePlugin(\"../bundle\")"
+    "s.pluginRepository(Repository.local(\"../repo\"))\n    s.plugin(\"org.example.bundle:^1.0\")" settings "${settings}")
+file(WRITE "${WORK}/shop/settings.qz" "${settings}")
+qiln(shop clean)
+qiln(shop bundle)
+expect("wrote build/distributions/greeter-1.0.0.bundle")
+file(READ "${WORK}/shop/qiln.lock" lock)
+string(FIND "${lock}" "[[plugin]]\nname = \"org.example.bundle\"" at)
+if(at EQUAL -1)
+    message(FATAL_ERROR "the plugin is not locked:\n${lock}")
+endif()

@@ -1,0 +1,8 @@
+package org.example.shop.greeter
+
+@test
+fn greetsByName() {
+    if greeting("Bo") != "Welcome to the shop, Bo!" {
+        panic("got {greeting("Bo")}")
+    }
+}

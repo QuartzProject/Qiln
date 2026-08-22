@@ -1,0 +1,13 @@
+import org.quartzlang.qiln.*
+import org.example.bundle.{bundle, Bundle}
+
+fn build(p: Project) {
+    p.group = "org.example.shop"
+    p.version = "1.0.0"
+    p.kind = Kind.Plugin
+    p.hostOnly = true
+    p.hostInterface("server.qzi")
+    p.exports(["onJoin"])
+    p.dependency(project(":core"))
+    bundle(p, Bundle(manifest = "plugin.toml"))
+}

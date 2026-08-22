@@ -1,0 +1,8 @@
+package org.example.shop.app
+
+import org.example.shop.core.{Price, welcome}
+
+fn main() {
+    print(welcome("Ada"))
+    print("Today's special costs {Price.of(499).show()}")
+}

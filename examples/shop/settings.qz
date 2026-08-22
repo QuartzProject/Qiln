@@ -1,0 +1,9 @@
+import org.quartzlang.qiln.*
+
+fn settings(s: Settings) {
+    s.name = "shop"
+    s.includeAll(["core", "greeter", "app"])
+    // The plugin's sources next to this workspace; a published one would be
+    // s.pluginRepository(Repository.local("../repo")) and s.plugin("org.example.bundle:^1.0").
+    s.includePlugin("../bundle")
+}

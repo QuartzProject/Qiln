@@ -1,0 +1,9 @@
+package org.example.shop.core
+
+@test
+fn showsCents() {
+    let p = Price.of(1205) with { currency = "USD" }
+    if p.show() != "12.05 USD" {
+        panic("got {p.show()}")
+    }
+}

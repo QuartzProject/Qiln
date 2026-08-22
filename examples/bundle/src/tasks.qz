@@ -1,0 +1,90 @@
+package org.example.bundle.tasks
+
+import org.quartzlang.crypto.sha256
+import org.quartzlang.data.decodeToml
+import org.quartzlang.qiln.task.*
+import org.quartzlang.zip.{writeZip, ZipEntry}
+
+/// The manifest a bundle carries next to its module.
+@derive(Decode)
+internal struct Manifest {
+    name: str
+    version: str
+    main: str
+    authors: [str] = []
+    @key("api-version")
+    apiVersion: int = 1
+    description: str = ""
+}
+
+fn plainName(s: str) -> bool {
+    if s.len() == 0 || s.len() > 64 {
+        return false
+    }
+    for c in s {
+        if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+            return false
+        }
+    }
+    return true
+}
+
+/// Everything wrong with a manifest, so one run reports all of it.
+pub fn problems(m: Manifest, projectVersion: str) -> [str] {
+    var out: [str] = []
+    if !plainName(m.name) {
+        out.push("name '{m.name}' must be 1 to 64 lower case letters, digits or '-'")
+    }
+    if m.version != projectVersion {
+        out.push("version {m.version} differs from the project's {projectVersion}")
+    }
+    if m.main.len() == 0 {
+        out.push("main must name the function the host calls first")
+    }
+    if m.apiVersion < 1 {
+        out.push("api-version must be 1 or more")
+    }
+    if m.authors.len() == 0 {
+        out.push("authors must list at least one author")
+    }
+    return out
+}
+
+pub fn bundle(t: TaskContext) -> Result<str, str> {
+    let path = t.option("manifest") ?? "plugin.toml"
+    let extension = t.option("extension") ?? "bundle"
+    let level = (t.option("level") ?? "9").toInt() ?? 9
+    let text = t.readText(path) ?? ""
+    if text.len() == 0 {
+        return Err("{path} is missing or empty")
+    }
+    let decoded = decodeToml::<Manifest>(text)
+    if decoded is Err(e) {
+        return Err("{path}: {e}")
+    }
+    let m = decoded.unwrapOr(Manifest("", "", ""))
+    let wrong = problems(m, t.projectVersion)
+    if wrong.len() > 0 {
+        return Err("{path}: {wrong.join("; ")}")
+    }
+    if let module = t.readBuild(t.artifact) {
+        return pack(t, m, text, module, extension, level)
+    }
+    return Err("build/{t.artifact} is missing; the build task writes it")
+}
+
+fn pack(t: TaskContext, m: Manifest, text: str, module: Bytes, extension: str, level: int) -> Result<str, str> {
+    let index = "name={m.name}\nversion={m.version}\nmain={m.main}\nmodule=plugin.qzb\nsha256={sha256(module).hex()}\n"
+    let entries = [
+        ZipEntry("plugin.toml", text.toBytes()),
+        ZipEntry("plugin.qzb", module),
+        ZipEntry("META-INF/BUNDLE", index.toBytes()),
+    ]
+    let archive = writeZip(entries, level = level)
+    let out = "distributions/{m.name}-{m.version}.{extension}"
+    if !t.writeBuild(out, archive) {
+        return Err("cannot write build/{out}")
+    }
+    log("{m.name} {m.version} by {m.authors.join(", ")}")
+    return Ok("wrote build/{out} ({archive.len()} bytes)")
+}

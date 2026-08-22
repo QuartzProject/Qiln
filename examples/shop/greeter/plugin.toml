@@ -1,0 +1,6 @@
+name = "greeter"
+version = "1.0.0"
+main = "onJoin"
+authors = ["Ada"]
+api-version = 1
+description = "Greets every player who joins"

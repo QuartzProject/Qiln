@@ -1,0 +1,17 @@
+package org.example.bundle.tasks
+
+@test
+fn acceptsAGoodManifest() {
+    let m = Manifest("greeter", "1.0.0", "onEnable", authors = ["ada"])
+    if problems(m, "1.0.0").len() != 0 {
+        panic("rejected: {problems(m, "1.0.0")}")
+    }
+}
+
+@test
+fn reportsEveryProblem() {
+    let m = Manifest("Greeter!", "2.0.0", "")
+    if problems(m, "1.0.0").len() != 4 {
+        panic("found {problems(m, "1.0.0")}")
+    }
+}

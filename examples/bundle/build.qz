@@ -1,0 +1,11 @@
+import org.quartzlang.qiln.*
+
+fn build(p: Project) {
+    p.group = "org.example"
+    p.name = "bundle"
+    p.version = "1.0.0"
+    p.kind = Kind.BuildPlugin
+    p.description = "Packages a host plugin and its manifest into one archive"
+    p.denyWarnings = true
+    p.publishTo(Repository.local("../repo"))
+}
