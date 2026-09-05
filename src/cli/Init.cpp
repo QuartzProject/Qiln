@@ -120,7 +120,7 @@ int init(const Args& a) {
     std::string package = group + "." + name;
     std::vector<std::pair<fs::path, std::string>> files = {
         {"build.qz", buildScript(group, *kind)},
-        {".gitignore", "build/\n.qiln/\n"},
+        {".gitignore", "/build/\n/.qiln/\n"},
     };
     if (*kind == ArtifactKind::BuildPlugin) {
         files.emplace_back("api/" + name + ".qz", pluginApi(package));
