@@ -1,4 +1,5 @@
 option(QILN_WERROR "Treat warnings as errors" OFF)
+option(QILN_FUZZ "Build the libFuzzer target (with QILN_SANITIZE=address,undefined)" OFF)
 set(QILN_SANITIZE "" CACHE STRING "Comma separated sanitizers (address,undefined)")
 
 find_program(QILN_CCACHE ccache)
@@ -14,6 +15,9 @@ target_compile_options(qiln_options INTERFACE -ffp-contract=off -fno-rtti -Wall 
     -Wconversion -Wno-sign-conversion -Wnon-virtual-dtor -Wimplicit-fallthrough)
 if(QILN_WERROR)
     target_compile_options(qiln_options INTERFACE -Werror)
+endif()
+if(QILN_FUZZ)
+    target_compile_options(qiln_options INTERFACE -fsanitize=fuzzer-no-link)
 endif()
 if(QILN_SANITIZE)
     target_compile_options(qiln_options INTERFACE -fsanitize=${QILN_SANITIZE} -fno-omit-frame-pointer)

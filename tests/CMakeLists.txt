@@ -10,3 +10,10 @@ add_test(NAME qiln.examples COMMAND ${CMAKE_COMMAND} -DQILN=$<TARGET_FILE:qiln>
     -P ${CMAKE_CURRENT_SOURCE_DIR}/Examples.cmake)
 set_tests_properties(qiln.unit qiln.examples PROPERTIES LABELS qiln
     ENVIRONMENT "QILN_HOME=${CMAKE_CURRENT_BINARY_DIR}/home")
+
+# Every reader of files Qiln did not write itself: `.qzmeta`, qiln.lock, maven-metadata.xml, `.qzs`, the cache.
+if(QILN_FUZZ)
+    add_executable(qiln-fuzz-readers fuzz/FuzzReaders.cpp)
+    target_link_libraries(qiln-fuzz-readers PRIVATE qiln_lib)
+    target_link_options(qiln-fuzz-readers PRIVATE -fsanitize=fuzzer)
+endif()

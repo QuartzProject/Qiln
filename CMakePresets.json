@@ -1,6 +1,10 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "base",
@@ -13,26 +17,108 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
-    { "name": "debug", "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
     {
       "name": "release",
       "inherits": "base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QILN_WERROR": "ON" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "QILN_WERROR": "ON"
+      }
     },
     {
       "name": "asan",
       "inherits": "base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "QILN_SANITIZE": "address,undefined" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "QILN_SANITIZE": "address,undefined"
+      }
+    },
+    {
+      "name": "fuzz",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "QILN_SANITIZE": "address,undefined",
+        "QILN_FUZZ": "ON"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "debug", "configurePreset": "debug", "targets": ["qiln", "qiln-tests"] },
-    { "name": "release", "configurePreset": "release", "targets": ["qiln", "qiln-tests"] },
-    { "name": "asan", "configurePreset": "asan", "targets": ["qiln", "qiln-tests"] }
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "targets": [
+        "qiln",
+        "qiln-tests"
+      ]
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "targets": [
+        "qiln",
+        "qiln-tests"
+      ]
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "targets": [
+        "qiln",
+        "qiln-tests"
+      ]
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
+      "targets": [
+        "qiln-fuzz-readers"
+      ]
+    }
   ],
   "testPresets": [
-    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true }, "filter": { "include": { "label": "qiln" } } },
-    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true }, "filter": { "include": { "label": "qiln" } } },
-    { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true }, "filter": { "include": { "label": "qiln" } } }
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "label": "qiln"
+        }
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "label": "qiln"
+        }
+      }
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "label": "qiln"
+        }
+      }
+    }
   ]
 }
