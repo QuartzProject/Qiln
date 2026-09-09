@@ -1,4 +1,4 @@
-# Script mode: writes OUTPUT, a header with every INPUTS file as a string constant named after it (qiln.qzi -> kQilnQzi).
+# Script mode: OUTPUT gets each INPUTS file as a string constant named after it (qiln.qzi is kQilnQzi).
 set(text "#pragma once\n\n#include <string_view>\n\nnamespace qiln::api {\n")
 foreach(input IN LISTS INPUTS)
     file(READ "${input}" content)
