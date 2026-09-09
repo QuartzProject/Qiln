@@ -1,5 +1,4 @@
-# The Quartz core, from a checkout (QILN_QUARTZ_SOURCE, built here) or from an installed package (find_package).
-# Qiln links the C++ library `quartz` plus the zstd and Monocypher libraries the core already vendors.
+# The Quartz core (with its vendored zstd and Monocypher) from a checkout built here, or an installed package.
 set(QILN_QUARTZ_SOURCE "${PROJECT_SOURCE_DIR}/../Quartz" CACHE PATH
     "A Quartz checkout to build the core from; empty uses an installed Quartz package")
 

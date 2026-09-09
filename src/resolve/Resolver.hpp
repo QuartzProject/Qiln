@@ -23,8 +23,7 @@ struct ResolveOptions {
     bool allowKeyChange = false;
 };
 
-/// For each package, the highest version every range accepts, repeated until nothing moves; on a conflict, the
-/// version that asked for the conflicting range is ruled out and the search starts again.
+/// The highest version each range accepts; a conflict rules out the version that caused it and starts again.
 std::expected<LockGraph, std::string> resolve(const std::vector<Requirement>& roots, const PackageSource& source,
                                               const ResolveOptions& options = {});
 

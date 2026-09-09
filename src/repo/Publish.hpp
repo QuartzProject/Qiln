@@ -16,8 +16,7 @@ struct Publication {
     std::vector<std::uint8_t> artifact;
 };
 
-/// Writes the artifact, its `.qzmeta`, a POM, the checksum files and `maven-metadata.xml` into a repository
-/// directory; artifact files go first and the listing last, so readers never see a version without its files.
+/// Writes a version into a repository directory; the listing goes last, so no reader sees a version without files.
 std::expected<std::string, std::string> publish(const Location& repo, Publication& pub, const Seed& seed);
 
 /// The current time as `yyyyMMddHHmmss` in UTC, as `maven-metadata.xml` wants it.

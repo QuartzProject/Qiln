@@ -1,5 +1,4 @@
-# Copies examples/ into WORK and drives QILN over them: the multi-project build, the bundle plugin from its sources
-# and the same plugin published and resolved from a repository.
+# The examples copied into WORK: the workspace, the plugin from its sources, then published and resolved.
 file(REMOVE_RECURSE "${WORK}")
 file(COPY "${EXAMPLES}/" DESTINATION "${WORK}" PATTERN build EXCLUDE PATTERN .qiln EXCLUDE PATTERN qiln.lock EXCLUDE)
 
