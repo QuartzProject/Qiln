@@ -19,13 +19,16 @@ public:
     bin::Writer w;
 
     void s(std::string_view text) { w.str(text); }
+
     void n(std::uint64_t v) { w.u64(v); }
+
     void list(const std::vector<std::string>& items) {
         n(items.size());
         for (const std::string& i : items) {
             s(i);
         }
     }
+
     void map(const std::map<std::string, std::string>& m) {
         n(m.size());
         for (const auto& [k, v] : m) {
@@ -42,7 +45,9 @@ public:
     bin::Reader r;
 
     std::string s() { return r.str(); }
+
     std::uint64_t n() { return r.u64(); }
+
     std::uint64_t count() {
         std::uint64_t c = n();
         if (c > kMaxItems || c > r.remaining()) {
@@ -51,6 +56,7 @@ public:
         }
         return c;
     }
+
     std::vector<std::string> list() {
         std::vector<std::string> out(count());
         for (std::string& i : out) {
@@ -58,6 +64,7 @@ public:
         }
         return out;
     }
+
     std::map<std::string, std::string> map() {
         std::map<std::string, std::string> out;
         for (std::uint64_t i = 0, c = count(); i < c && !r.failed(); ++i) {
@@ -66,6 +73,7 @@ public:
         }
         return out;
     }
+
     [[nodiscard]] bool failed() const { return bad || r.failed(); }
 
     bool bad = false;

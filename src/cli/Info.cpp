@@ -27,8 +27,8 @@ void printPackage(const LockGraph& g, const std::string& name, const std::string
     const Locked* l = g.find(name);
     std::string version = l == nullptr ? "not locked" : quartz::formatVersion(l->version);
     bool repeat = l != nullptr && !l->dependencies.empty() && shown.contains(name);
-    std::printf("%s%s %s %s -> %s%s%s\n", indent.c_str(), last ? "└──" : "├──",
-                name.c_str(), range.c_str(), version.c_str(),
+    std::printf("%s%s %s %s -> %s%s%s\n", indent.c_str(), last ? "└──" : "├──", name.c_str(), range.c_str(),
+                version.c_str(),
                 l != nullptr && l->kind != ArtifactKind::Library ? std::format(" ({})", kindName(l->kind)).c_str() : "",
                 repeat ? " (*)" : "");
     if (l == nullptr || repeat) {
@@ -87,8 +87,7 @@ int deps(Workspace& ws, const ProjectModel* current) {
             bool last = i + 1 == p->dependencies.size();
             std::string tag = d.configuration == "test" ? " [test]" : "";
             if (!d.project.empty()) {
-                std::printf("%s %s (project)%s\n", last ? "└──" : "├──",
-                            d.project.c_str(), tag.c_str());
+                std::printf("%s %s (project)%s\n", last ? "└──" : "├──", d.project.c_str(), tag.c_str());
                 continue;
             }
             printPackage(**graph, d.name, d.range + tag, "", last, shown);
@@ -106,8 +105,8 @@ int deps(Workspace& ws, const ProjectModel* current) {
         std::printf("build plugins\n");
         for (std::size_t i = 0; i < (*plugins)->size(); ++i) {
             const LoadedPlugin& lp = (**plugins)[i];
-            std::printf("%s %s %s (%s)\n", i + 1 == (*plugins)->size() ? "└──" : "├──",
-                        lp.name.c_str(), lp.version.c_str(), lp.origin.c_str());
+            std::printf("%s %s %s (%s)\n", i + 1 == (*plugins)->size() ? "└──" : "├──", lp.name.c_str(),
+                        lp.version.c_str(), lp.origin.c_str());
         }
     }
     return 0;

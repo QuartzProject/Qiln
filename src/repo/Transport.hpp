@@ -22,8 +22,7 @@ struct Location {
 std::expected<Location, std::string> locate(std::string_view spec, const std::filesystem::path& relativeTo);
 
 /// A file of the repository; nullopt when it does not exist. Larger than `limit` bytes is an error.
-std::expected<std::optional<std::vector<std::uint8_t>>, std::string> download(const Location& repo,
-                                                                              const std::string& path,
-                                                                              std::size_t limit);
+std::expected<std::optional<std::vector<std::uint8_t>>, std::string>
+download(const Location& repo, const std::string& path, std::size_t limit);
 
 } // namespace qiln

@@ -1,11 +1,10 @@
 #include "build/Runner.hpp"
 #include "build/TaskHost.hpp"
 #include "build/Tasks.hpp"
+#include "ir/Serialize.hpp"
 #include "repo/Archive.hpp"
 #include "repo/Publish.hpp"
 #include "support/Files.hpp"
-
-#include "ir/Serialize.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -136,8 +135,8 @@ std::expected<int, std::string> TaskRunner::runEntry(const ProjectModel& p) {
 
 std::expected<void, std::string> TaskRunner::publish(const ProjectModel& p) {
     if (!coordinatesOf(p.packageName())) {
-        return std::unexpected(std::format("'{}' is not a package name; set p.group (like org.example) to publish",
-                                           p.packageName()));
+        return std::unexpected(
+            std::format("'{}' is not a package name; set p.group (like org.example) to publish", p.packageName()));
     }
     std::string target = options_.publishTo;
     fs::path base = fs::current_path();
@@ -195,7 +194,8 @@ std::expected<void, std::string> TaskRunner::publish(const ProjectModel& p) {
         const ProjectModel& dep = *ws_.model.findProject(d.project);
         m.dependencies.push_back({dep.packageName(), "^" + dep.version});
     }
-    std::sort(m.dependencies.begin(), m.dependencies.end(), [](const auto& a, const auto& b) { return a.name < b.name; });
+    std::sort(m.dependencies.begin(), m.dependencies.end(),
+              [](const auto& a, const auto& b) { return a.name < b.name; });
     for (std::size_t i = 1; i < m.dependencies.size(); ++i) {
         if (m.dependencies[i - 1].name == m.dependencies[i].name) {
             return std::unexpected(std::format("{} is listed twice as a dependency", m.dependencies[i].name));

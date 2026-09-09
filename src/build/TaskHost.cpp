@@ -68,10 +68,15 @@ bool readInto(HostCall& call, const fs::path& base, bool nullable) {
 }
 
 bool name(HostCall& call, void* user) { return returnStr(call, env(user).task->name); }
+
 bool projectPath(HostCall& call, void* user) { return returnStr(call, env(user).project->path); }
+
 bool projectName(HostCall& call, void* user) { return returnStr(call, env(user).project->name); }
+
 bool projectVersion(HostCall& call, void* user) { return returnStr(call, env(user).project->version); }
+
 bool packageName(HostCall& call, void* user) { return returnStr(call, env(user).project->packageName()); }
+
 bool artifact(HostCall& call, void* user) { return returnStr(call, env(user).artifact); }
 
 bool option(HostCall& call, void* user) {
@@ -118,6 +123,7 @@ bool exists(HostCall& call, void* user) {
 }
 
 bool readText(HostCall& call, void* user) { return readInto(call, env(user).projectDir, true); }
+
 bool readBuild(HostCall& call, void* user) { return readInto(call, env(user).buildDir, true); }
 
 bool writeBuild(HostCall& call, void* user) {
@@ -147,8 +153,8 @@ compilePluginTasks(const std::string& plugin, const std::vector<quartz::SourceIn
     inputs.insert(inputs.end(), sources.begin(), sources.end());
     quartz::CompileOutput out = quartz::compile(inputs);
     if (!out.program) {
-        return std::unexpected(std::format("the tasks of build plugin {} do not compile:\n{}", plugin,
-                                           out.diagnostics));
+        return std::unexpected(
+            std::format("the tasks of build plugin {} do not compile:\n{}", plugin, out.diagnostics));
     }
     return out.program;
 }
@@ -171,10 +177,12 @@ std::expected<std::string, std::string> runPluginTask(const std::shared_ptr<cons
     limits.fuelPerCall = kTaskFuel;
     limits.memoryBytes = kTaskMemory;
     quartz::vm::Sandbox sb(program, limits);
+
     struct Entry {
         std::string_view name;
         quartz::vm::HostFn fn;
     };
+
     static constexpr Entry kEntries[] = {
         {"TaskContext.name", name},
         {"TaskContext.projectPath", projectPath},

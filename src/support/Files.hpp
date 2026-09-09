@@ -29,7 +29,7 @@ bool safeRelativePath(std::string_view path);
 
 /// Files under `dir` with one of `extensions`, as `/` separated paths relative to `base`, sorted.
 std::expected<std::vector<std::string>, std::string> listFiles(const fs::path& base, const fs::path& dir,
-                                                              std::span<const std::string_view> extensions);
+                                                               std::span<const std::string_view> extensions);
 
 std::span<const std::uint8_t> bytesOf(std::string_view text);
 std::string_view textOf(std::span<const std::uint8_t> bytes);

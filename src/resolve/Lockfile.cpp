@@ -31,9 +31,7 @@ std::expected<Locked, std::string> readEntry(const toml::Section& s) {
             return std::unexpected(field->error());
         }
     }
-    auto bad = [&](std::string_view what) {
-        return std::unexpected(std::format("qiln.lock:{}: {}", s.line, what));
-    };
+    auto bad = [&](std::string_view what) { return std::unexpected(std::format("qiln.lock:{}: {}", s.line, what)); };
     p.name = *name;
     if (!coordinatesOf(p.name)) {
         return bad(std::format("'{}' is not a package name", p.name));
@@ -124,8 +122,8 @@ std::expected<Lockfile, std::string> parseLock(std::string_view source) {
 }
 
 std::string printLock(const Lockfile& lock) {
-    std::string out = std::format("# Written by qiln: the exact packages this workspace builds with.\nformat = {}\n",
-                                  kFormat);
+    std::string out =
+        std::format("# Written by qiln: the exact packages this workspace builds with.\nformat = {}\n", kFormat);
     printGraph(out, "package", lock.packages);
     printGraph(out, "plugin", lock.plugins);
     return out;

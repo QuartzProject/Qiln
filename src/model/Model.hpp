@@ -63,6 +63,7 @@ struct ProjectModel {
     std::vector<TaskSpec> tasks; // declared by the script and its plugins
 
     [[nodiscard]] std::string packageName() const { return group.empty() ? name : group + "." + name; }
+
     [[nodiscard]] const TaskSpec* findTask(std::string_view task) const;
 };
 

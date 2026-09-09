@@ -176,11 +176,11 @@ std::expected<Meta, std::string> parseMeta(std::string_view source, std::string_
     if (m->name != name || m->version != version) {
         return std::unexpected(std::format("{}.qzmeta describes {} {}", label, m->name, formatVersion(m->version)));
     }
-    std::string expected = std::format("{}-{}{}", coordinatesOf(name)->artifact, formatVersion(version),
-                                       archiveExtension(m->kind));
+    std::string expected =
+        std::format("{}-{}{}", coordinatesOf(name)->artifact, formatVersion(version), archiveExtension(m->kind));
     if (m->archive != expected) {
-        return std::unexpected(std::format("{}.qzmeta names the archive '{}', expected '{}'", label, m->archive,
-                                           expected));
+        return std::unexpected(
+            std::format("{}.qzmeta names the archive '{}', expected '{}'", label, m->archive, expected));
     }
     if (!verifyMeta(*m)) {
         return std::unexpected(std::format("{}.qzmeta has an invalid signature", label));

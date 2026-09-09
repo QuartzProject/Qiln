@@ -19,7 +19,8 @@ bool settingsName(HostCall& call, void* user) { return returnStr(call, context(u
 
 bool settingsSetName(HostCall& call, void* user) {
     if (!validName(str(call, 1))) {
-        return fail(call, std::format("'{}' is not a name like 'shop' (lower case letters, digits and _)", str(call, 1)));
+        return fail(call,
+                    std::format("'{}' is not a name like 'shop' (lower case letters, digits and _)", str(call, 1)));
     }
     context(user).workspace->name = std::string(str(call, 1));
     return true;

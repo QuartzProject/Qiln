@@ -39,8 +39,8 @@ std::expected<std::vector<quartz::Version>, std::string> Repositories::versions(
             return std::unexpected(std::format("{}: {}", locations_[i].display, list.error()));
         }
         if (list->empty()) {
-            return std::unexpected(std::format("{} has {} but lists no major.minor.patch version of it",
-                                               locations_[i].display, name));
+            return std::unexpected(
+                std::format("{} has {} but lists no major.minor.patch version of it", locations_[i].display, name));
         }
         home_[name] = i;
         return versions_[name] = std::move(*list);

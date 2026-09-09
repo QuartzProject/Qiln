@@ -1,9 +1,11 @@
+#include "resolve/Resolver.hpp"
+
 #include "repo/Publish.hpp"
 #include "repo/Repositories.hpp"
-#include "resolve/Resolver.hpp"
 #include "support/Files.hpp"
 
 #include <doctest/doctest.h>
+
 #include <format>
 
 namespace qiln {

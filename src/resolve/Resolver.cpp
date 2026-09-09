@@ -197,8 +197,8 @@ private:
         }
         if (locked != nullptr && locked->version == pick && (*m)->checksum != locked->checksum) {
             return fatal(std::format("{} changed since it was locked: published versions never change, so "
-                                               "the repository is not serving what was published",
-                                               label(**m)));
+                                     "the repository is not serving what was published",
+                                     label(**m)));
         }
         return **m;
     }

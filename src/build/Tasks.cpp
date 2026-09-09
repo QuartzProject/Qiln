@@ -48,7 +48,8 @@ std::vector<TaskRef> tasksOf(const ProjectModel& p) {
         out.push_back(std::move(t));
     }
     for (const TaskSpec& s : p.tasks) {
-        if (std::any_of(std::begin(kBuiltins), std::end(kBuiltins), [&](const Builtin& b) { return b.name == s.name; })) {
+        if (std::any_of(std::begin(kBuiltins), std::end(kBuiltins),
+                        [&](const Builtin& b) { return b.name == s.name; })) {
             continue;
         }
         out.push_back(TaskRef{&p, s.name, s.description, s.group.empty() ? "other" : s.group, s.dependsOn, &s, false});
@@ -60,8 +61,7 @@ TaskRunner::TaskRunner(Workspace& ws, RunOptions options) : ws_(ws), options_(st
 
 TaskRunner::~TaskRunner() = default;
 
-std::expected<int, std::string> TaskRunner::run(const std::vector<std::string>& requests,
-                                                const ProjectModel* current) {
+std::expected<int, std::string> TaskRunner::run(const std::vector<std::string>& requests, const ProjectModel* current) {
     std::map<std::string, std::vector<TaskRef>> all;
     for (const ProjectModel& p : ws_.model.projects) {
         all[p.path] = tasksOf(p);
@@ -103,8 +103,8 @@ std::expected<int, std::string> TaskRunner::run(const std::vector<std::string>& 
             }
             const TaskRef* target = find(path, name);
             if (target == nullptr) {
-                return std::unexpected(std::format("{} depends on {}, which does not exist",
-                                                   qualified(*t->project, t->name), dep));
+                return std::unexpected(
+                    std::format("{} depends on {}, which does not exist", qualified(*t->project, t->name), dep));
             }
             if (auto r = self(self, target); !r) {
                 return r;

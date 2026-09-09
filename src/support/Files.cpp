@@ -112,7 +112,7 @@ bool safeRelativePath(std::string_view path) {
 }
 
 std::expected<std::vector<std::string>, std::string> listFiles(const fs::path& base, const fs::path& dir,
-                                                              std::span<const std::string_view> extensions) {
+                                                               std::span<const std::string_view> extensions) {
     std::vector<std::string> out;
     std::error_code ec;
     if (!fs::is_directory(dir, ec)) {

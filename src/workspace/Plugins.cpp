@@ -39,8 +39,8 @@ std::expected<void, std::string> addLibraries(Workspace& ws, const LockGraph& g,
         }
         std::string label = std::format("{}@{}", p->name, quartz::formatVersion(p->version));
         if (p->kind != ArtifactKind::Library) {
-            return std::unexpected(std::format("{} is a {}; build plugins can only use libraries", label,
-                                               kindName(p->kind)));
+            return std::unexpected(
+                std::format("{} is a {}; build plugins can only use libraries", label, kindName(p->kind)));
         }
         auto bytes = ws.archive(*p, true);
         auto files = bytes ? unpackSources(*bytes) : std::unexpected(bytes.error());
@@ -92,8 +92,8 @@ std::expected<void, std::string> Workspace::evaluateLocalPlugins() {
         fs::path dir = root / r.dir;
         auto text = readText(dir / "build.qz");
         if (!text) {
-            return std::unexpected(std::format("settings.qz includes the plugin in '{}' but {}/build.qz does not exist",
-                                               r.dir, r.dir));
+            return std::unexpected(
+                std::format("settings.qz includes the plugin in '{}' but {}/build.qz does not exist", r.dir, r.dir));
         }
         ProjectModel pm;
         pm.dir = r.dir;

@@ -16,9 +16,8 @@ namespace {
 
 constexpr std::string_view kSourceExtensions[] = {".qz", ".qzi"};
 
-std::expected<std::vector<std::string>, std::string> filesOf(const Workspace& ws, const ProjectModel& p,
-                                                            const std::vector<std::string>& dirs,
-                                                            std::string_view fallback) {
+std::expected<std::vector<std::string>, std::string>
+filesOf(const Workspace& ws, const ProjectModel& p, const std::vector<std::string>& dirs, std::string_view fallback) {
     std::vector<std::string> out;
     std::vector<std::string> list = dirs.empty() ? std::vector<std::string>{std::string(fallback)} : dirs;
     for (const std::string& d : list) {

@@ -18,11 +18,17 @@ ProjectModel& project(HostCall&, void* user) { return *context(user).project; }
 std::string text(HostCall& call, std::size_t i) { return std::string(str(call, i)); }
 
 bool getName(HostCall& call, void* user) { return returnStr(call, project(call, user).name); }
+
 bool getGroup(HostCall& call, void* user) { return returnStr(call, project(call, user).group); }
+
 bool getVersion(HostCall& call, void* user) { return returnStr(call, project(call, user).version); }
+
 bool getDescription(HostCall& call, void* user) { return returnStr(call, project(call, user).description); }
+
 bool getEntry(HostCall& call, void* user) { return returnStr(call, project(call, user).entry); }
+
 bool getPath(HostCall& call, void* user) { return returnStr(call, project(call, user).path); }
+
 bool getPackageName(HostCall& call, void* user) { return returnStr(call, project(call, user).packageName()); }
 
 bool getKind(HostCall& call, void* user) {
@@ -345,6 +351,7 @@ void bindProject(quartz::vm::Sandbox& sb, Context& ctx) {
         std::string_view name;
         quartz::vm::HostFn fn;
     };
+
     static constexpr Entry kEntries[] = {
         {"Project.path", getPath},
         {"Project.name", getName},

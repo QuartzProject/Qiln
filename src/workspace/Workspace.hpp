@@ -20,10 +20,10 @@ namespace fs = std::filesystem;
 class Repositories;
 
 struct Options {
-    Properties properties;  // -Pkey=value
-    bool noCache = false;   // evaluate the scripts even when the cached configuration is current
-    bool update = false;    // resolve to the newest versions the ranges allow
-    bool locked = false;    // fail instead of changing qiln.lock
+    Properties properties; // -Pkey=value
+    bool noCache = false;  // evaluate the scripts even when the cached configuration is current
+    bool update = false;   // resolve to the newest versions the ranges allow
+    bool locked = false;   // fail instead of changing qiln.lock
     bool allowKeyChange = false;
     bool quiet = false;
 };
@@ -47,6 +47,7 @@ public:
     bool fromCache = false;
 
     [[nodiscard]] fs::path projectDir(const ProjectModel& p) const { return p.dir.empty() ? root : root / p.dir; }
+
     [[nodiscard]] std::string displayPath(const fs::path& path) const;
 
     /// Every requested build plugin, resolved, fetched and verified on first use.

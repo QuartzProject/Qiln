@@ -34,8 +34,8 @@ std::expected<fs::path, std::string> findRoot(const fs::path& start, bool& hasSe
     if (nearestBuild) {
         return *nearestBuild;
     }
-    return std::unexpected(std::format("no build.qz or settings.qz in {} or above it; 'qiln init' creates a project",
-                                       dir.string()));
+    return std::unexpected(
+        std::format("no build.qz or settings.qz in {} or above it; 'qiln init' creates a project", dir.string()));
 }
 
 Hash32 hashFile(const fs::path& path) {
@@ -86,8 +86,7 @@ Hash32 inputHash(const Workspace& ws, std::string_view id) {
 }
 
 Fingerprint fingerprintOf(const Workspace& ws) {
-    std::vector<std::string> ids = {"qiln", "properties", "root", "lock:plugins", "file:settings.qz",
-                                    "file:build.qz"};
+    std::vector<std::string> ids = {"qiln", "properties", "root", "lock:plugins", "file:settings.qz", "file:build.qz"};
     for (const std::string& dir : ws.model.includes) {
         ids.push_back(std::format("file:{}/build.qz", dir));
     }
@@ -135,12 +134,12 @@ std::expected<void, std::string> checkProjects(const WorkspaceModel& m) {
             }
             const ProjectModel* target = m.findProject(d.project);
             if (target == nullptr) {
-                return std::unexpected(std::format("project {} depends on {}, which settings.qz does not include",
-                                                   p.path, d.project));
+                return std::unexpected(
+                    std::format("project {} depends on {}, which settings.qz does not include", p.path, d.project));
             }
             if (target->kind != ArtifactKind::Library || target == &p) {
-                return std::unexpected(std::format("project {} depends on {}, which is not a library", p.path,
-                                                   d.project));
+                return std::unexpected(
+                    std::format("project {} depends on {}, which is not a library", p.path, d.project));
             }
         }
     }
@@ -185,8 +184,8 @@ std::expected<void, std::string> evaluate(Workspace& ws) {
             return std::unexpected(e.error());
         }
     }
-    auto plugins = m.plugins.empty() ? std::expected<const std::vector<LoadedPlugin>*, std::string>(nullptr)
-                                     : ws.plugins();
+    auto plugins =
+        m.plugins.empty() ? std::expected<const std::vector<LoadedPlugin>*, std::string>(nullptr) : ws.plugins();
     if (!plugins) {
         return std::unexpected(plugins.error());
     }

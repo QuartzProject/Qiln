@@ -185,8 +185,8 @@ std::expected<const LockGraph*, std::string> Workspace::graph(bool pluginGraph) 
         for (const Locked& p : next.packages) {
             const Locked* old = g.find(p.name);
             if (!options.quiet && (old == nullptr || old->version != p.version)) {
-                std::fprintf(stderr, "locked %s %s (%s)%s\n", p.name.c_str(),
-                             quartz::formatVersion(p.version).c_str(), std::string(kindName(p.kind)).c_str(),
+                std::fprintf(stderr, "locked %s %s (%s)%s\n", p.name.c_str(), quartz::formatVersion(p.version).c_str(),
+                             std::string(kindName(p.kind)).c_str(),
                              old == nullptr ? "" : std::format(", was {}", formatVersion(old->version)).c_str());
             }
         }
