@@ -48,7 +48,7 @@ std::expected<fs::path, std::string> inside(const fs::path& base, std::string_vi
     return full;
 }
 
-bool readInto(HostCall& call, const fs::path& base, bool nullable) {
+bool readInto(HostCall& call, const fs::path& base, bool binary) {
     auto path = inside(base, str(call, 1));
     if (!path) {
         return fail(call, path.error());
@@ -59,12 +59,16 @@ bool readInto(HostCall& call, const fs::path& base, bool nullable) {
     }
     if (!*bytes) {
         call.result.p = nullptr;
-        return nullable || fail(call, "no such file");
+        return true;
     }
     if (!call.charge(static_cast<std::int64_t>((*bytes)->size() / kBytesPerFuel))) {
         return false;
     }
-    return returnStr(call, textOf(**bytes));
+    if (!binary) {
+        return returnStr(call, textOf(**bytes));
+    }
+    call.result.p = call.bytes(textOf(**bytes));
+    return call.result.p != nullptr || fail(call, "out of memory");
 }
 
 bool name(HostCall& call, void* user) { return returnStr(call, env(user).task->name); }
@@ -122,7 +126,9 @@ bool exists(HostCall& call, void* user) {
     return true;
 }
 
-bool readText(HostCall& call, void* user) { return readInto(call, env(user).projectDir, true); }
+bool readText(HostCall& call, void* user) { return readInto(call, env(user).projectDir, false); }
+
+bool readBytes(HostCall& call, void* user) { return readInto(call, env(user).projectDir, true); }
 
 bool readBuild(HostCall& call, void* user) { return readInto(call, env(user).buildDir, true); }
 
@@ -194,7 +200,7 @@ std::expected<std::string, std::string> runPluginTask(const std::shared_ptr<cons
         {"TaskContext.sources", sources},
         {"TaskContext.exists", exists},
         {"TaskContext.readText", readText},
-        {"TaskContext.readBytes", readText},
+        {"TaskContext.readBytes", readBytes},
         {"TaskContext.readBuild", readBuild},
         {"TaskContext.writeBuild", writeBuild},
         {"TaskContext.writeBuildText", writeBuild},
