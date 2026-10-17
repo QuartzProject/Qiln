@@ -151,18 +151,44 @@ std::expected<std::pair<std::string, std::string>, std::string> parseNotation(st
     return std::pair(std::move(name), std::move(range));
 }
 
-void bindCommon(quartz::vm::Sandbox& sb, Context& ctx) { sb.bind("org.quartzlang.qiln.log", log, &ctx); }
+bool called(const quartz::vm::Sandbox& sb, std::string_view name) {
+    const quartz::vm::Program& program = sb.program();
+    const auto& imports = program.module->imports;
+    for (std::size_t i = 0; i < imports.size(); ++i) {
+        if (imports[i].name == name) {
+            return program.importRequired[i];
+        }
+    }
+    return false;
+}
+
+void bindCommon(quartz::vm::Sandbox& sb, Context& ctx) {
+    sb.bind("org.quartzlang.qiln.log", log, &ctx);
+    sb.bind("org.quartzlang.qiln.Settings.property", property, &ctx);
+    sb.bind("org.quartzlang.qiln.Project.property", property, &ctx);
+}
 
 void bindSettings(quartz::vm::Sandbox& sb, Context& ctx) {
-    auto pick = [&](quartz::vm::HostFn fn) { return ctx.workspace != nullptr ? fn : noSettings; };
-    sb.bind("Settings.name", pick(settingsName), &ctx);
-    sb.bind("Settings.setName", pick(settingsSetName), &ctx);
-    sb.bind("Settings.include", pick(settingsInclude), &ctx);
-    sb.bind("Settings.includePlugin", pick(settingsIncludePlugin), &ctx);
-    sb.bind("Settings.addPluginRepository", pick(settingsPluginRepository), &ctx);
-    sb.bind("Settings.addPlugin", pick(settingsPlugin), &ctx);
-    sb.bind("Settings.property", property, &ctx);
-    sb.bind("Project.property", property, &ctx);
+    struct Entry {
+        std::string_view name;
+        quartz::vm::HostFn fn;
+    };
+
+    static constexpr Entry kEntries[] = {
+        {"Settings.name", settingsName},
+        {"Settings.setName", settingsSetName},
+        {"Settings.include", settingsInclude},
+        {"Settings.includePlugin", settingsIncludePlugin},
+        {"Settings.addPluginRepository", settingsPluginRepository},
+        {"Settings.addPlugin", settingsPlugin},
+    };
+    for (const Entry& e : kEntries) {
+        std::string name = std::string(kApiPackage) + std::string(e.name);
+        // The prelude's methods on Settings call these, so a build script carries the calls it never makes.
+        if (ctx.workspace != nullptr || called(sb, name)) {
+            sb.bind(name, ctx.workspace != nullptr ? e.fn : noSettings, &ctx);
+        }
+    }
 }
 
 } // namespace qiln::host

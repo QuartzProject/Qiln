@@ -50,7 +50,7 @@ pub fn problems(m: Manifest, projectVersion: str) -> [str] {
     return out
 }
 
-pub fn bundle(t: TaskContext) -> Result<str, str> {
+pub fn bundle(t: TaskContext) -> Result<(), str> {
     let path = t.option("manifest") ?? "plugin.toml"
     let extension = t.option("extension") ?? "bundle"
     let level = (t.option("level") ?? "9").toInt() ?? 9
@@ -73,7 +73,7 @@ pub fn bundle(t: TaskContext) -> Result<str, str> {
     return Err("build/{t.artifact} is missing; the build task writes it")
 }
 
-fn pack(t: TaskContext, m: Manifest, text: str, module: Bytes, extension: str, level: int) -> Result<str, str> {
+fn pack(t: TaskContext, m: Manifest, text: str, module: Bytes, extension: str, level: int) -> Result<(), str> {
     let index = "name={m.name}\nversion={m.version}\nmain={m.main}\nmodule=plugin.qzb\nsha256={sha256(module).hex()}\n"
     let entries = [
         ZipEntry("plugin.toml", text.toBytes()),
@@ -86,5 +86,6 @@ fn pack(t: TaskContext, m: Manifest, text: str, module: Bytes, extension: str, l
         return Err("cannot write build/{out}")
     }
     log("{m.name} {m.version} by {m.authors.join(", ")}")
-    return Ok("wrote build/{out} ({archive.len()} bytes)")
+    log("wrote build/{out} ({archive.len()} bytes)")
+    return Ok(())
 }

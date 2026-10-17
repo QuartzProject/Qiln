@@ -8,6 +8,13 @@ pub enum Kind {
     BuildPlugin
 }
 
+/// What the compiler does with the warnings of one rule: drop them, report them, or fail the build.
+pub enum RuleLevel {
+    Ignore
+    Warning
+    Error
+}
+
 /// The workspace that `settings.qz` describes.
 @handle
 struct Settings {}
@@ -53,9 +60,12 @@ impl Project {
     @property
     fn entry(self) -> str
     fn setEntry(self, value: str)
+    /// Every compiler warning fails `check`, `build` and `test`, except rules given another level with `warning`.
     @property
     fn denyWarnings(self) -> bool
     fn setDenyWarnings(self, value: bool)
+    /// The level of the warning rule `rule` (like `unused-variable`), or of every rule with `*`; the last call wins.
+    fn warning(self, rule: str, level: RuleLevel)
     /// Compile only against the declared host interfaces, without the runner's `print`.
     @property
     fn hostOnly(self) -> bool

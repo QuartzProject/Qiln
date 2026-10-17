@@ -87,6 +87,13 @@ impl Project {
         }
     }
 
+    /// The same level for several warning rules.
+    pub fn warnings(self, rules: [str], level: RuleLevel) {
+        for r in rules {
+            self.warning(r, level)
+        }
+    }
+
     pub fn limits(self, l: Limits) {
         self.setLimits(l.fuel, l.memoryMiB, l.maxDepth)
     }

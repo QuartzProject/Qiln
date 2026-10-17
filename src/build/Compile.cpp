@@ -8,6 +8,7 @@
 
 #include <cstdio>
 #include <format>
+#include <map>
 #include <set>
 
 namespace qiln {
@@ -42,7 +43,42 @@ std::expected<void, std::string> read(const Workspace& ws, const std::vector<std
     return {};
 }
 
+// A failed compilation whose only errors are raised warnings says which rules did it.
+std::string failure(const quartz::CompileOutput& out, std::string_view what) {
+    std::map<std::string, std::size_t> raised;
+    std::size_t errors = 0;
+    for (const quartz::CompileMessage& m : out.messages) {
+        if (m.severity == quartz::Severity::Error) {
+            ++errors;
+            if (!m.rule.empty()) {
+                ++raised[m.rule];
+            }
+        }
+    }
+    std::size_t count = 0;
+    std::string rules;
+    for (const auto& [rule, n] : raised) {
+        count += n;
+        rules += std::format("{}{} {}", rules.empty() ? "" : ", ", rule, n);
+    }
+    if (count == 0 || count != errors) {
+        return std::format("{} does not compile", what);
+    }
+    return std::format("{} does not compile: {} warning(s) are errors ({})", what, count, rules);
+}
+
 } // namespace
+
+std::vector<quartz::RuleSetting> Compiler::rulesFor(const ProjectModel& p) const {
+    std::vector<quartz::RuleSetting> out;
+    if (p.denyWarnings || denyWarnings_) {
+        out.push_back({"*", quartz::RuleLevel::Error});
+    }
+    for (const RuleSpec& r : p.rules) {
+        out.push_back({r.rule, static_cast<quartz::RuleLevel>(r.level)});
+    }
+    return out;
+}
 
 std::string Compiler::packageToml(const ProjectModel& p) {
     std::string out = std::format("name = \"{}\"\nversion = \"{}\"\nkind = \"{}\"\n", p.packageName(), p.version,
@@ -250,6 +286,7 @@ std::expected<const Compiled*, std::string> Compiler::compile(const ProjectModel
         return std::unexpected(set.error());
     }
     quartz::CompileOptions opts;
+    opts.rules = rulesFor(p);
     bool module = !tests && (p.kind == ArtifactKind::Application || p.kind == ArtifactKind::Plugin);
     opts.emitBinary = module;
     if (module) {
@@ -258,7 +295,7 @@ std::expected<const Compiled*, std::string> Compiler::compile(const ProjectModel
     quartz::CompileOutput out = quartz::compile(set->inputs, opts);
     std::fputs(out.diagnostics.c_str(), stderr);
     if (!out.program) {
-        return std::unexpected(std::format("project {} does not compile", p.path));
+        return std::unexpected(failure(out, std::format("project {}", p.path)));
     }
     Compiled c{out.program, std::move(out.binary), out.warnings, std::move(set->plugins)};
     return &done_.emplace(key, std::move(c)).first->second;
@@ -274,13 +311,12 @@ std::expected<void, std::string> Compiler::checkBuildPlugin(const ProjectModel& 
     if (auto r = read(ws_, *files, false, inputs); !r) {
         return r;
     }
-    quartz::CompileOutput out = quartz::compile(inputs);
+    quartz::CompileOptions opts;
+    opts.rules = rulesFor(p);
+    quartz::CompileOutput out = quartz::compile(inputs, opts);
     std::fputs(out.diagnostics.c_str(), stderr);
     if (!out.program) {
-        return std::unexpected(std::format("the API of build plugin {} does not compile", p.path));
-    }
-    if (p.denyWarnings && out.warnings > 0) {
-        return std::unexpected(std::format("the API of build plugin {} has warnings", p.path));
+        return std::unexpected(failure(out, std::format("the API of build plugin {}", p.path)));
     }
     return {};
 }

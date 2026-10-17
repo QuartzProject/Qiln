@@ -11,7 +11,7 @@ namespace {
 namespace bin = quartz::ir::bin;
 
 constexpr std::string_view kMagic = "QLNC";
-constexpr std::uint64_t kVersion = 1;
+constexpr std::uint64_t kVersion = 2;
 constexpr std::uint64_t kMaxItems = 1u << 16;
 
 class Out {
@@ -85,6 +85,11 @@ void writeProject(Out& o, const ProjectModel& p) {
     }
     o.n(static_cast<std::uint64_t>(p.kind));
     o.n((p.denyWarnings ? 1 : 0) | (p.hostOnly ? 2 : 0));
+    o.n(p.rules.size());
+    for (const RuleSpec& r : p.rules) {
+        o.s(r.rule);
+        o.n(r.level);
+    }
     o.list(p.mainDirs);
     o.list(p.testDirs);
     o.list(p.interfaces);
@@ -129,6 +134,14 @@ ProjectModel readProject(In& in) {
     std::uint64_t flags = in.n();
     p.denyWarnings = (flags & 1) != 0;
     p.hostOnly = (flags & 2) != 0;
+    for (std::uint64_t i = 0, c = in.count(); i < c && !in.failed(); ++i) {
+        RuleSpec r;
+        r.rule = in.s();
+        std::uint64_t level = in.n();
+        in.bad = in.bad || level > 2;
+        r.level = static_cast<std::uint8_t>(level);
+        p.rules.push_back(std::move(r));
+    }
     p.mainDirs = in.list();
     p.testDirs = in.list();
     p.interfaces = in.list();

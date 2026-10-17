@@ -30,8 +30,13 @@ inline constexpr std::size_t kTaskMemory = 256u << 20;
 std::expected<std::shared_ptr<const quartz::vm::Program>, std::string>
 compilePluginTasks(const std::string& plugin, const std::vector<quartz::SourceInput>& sources);
 
-/// Runs `fn <action>(t: TaskContext) -> Result<str, str>` in a new sandbox; Ok carries a summary line.
-std::expected<std::string, std::string> runPluginTask(const std::shared_ptr<const quartz::vm::Program>& program,
+struct TaskOutcome {
+    std::string summary;           // the Ok of a deprecated `Result<str, str>` action
+    bool deprecatedResult = false; // the action still returns `Result<str, str>`
+};
+
+/// Runs `fn <action>(t: TaskContext) -> Result<(), str>` in a new sandbox; an Err fails the task with its text.
+std::expected<TaskOutcome, std::string> runPluginTask(const std::shared_ptr<const quartz::vm::Program>& program,
                                                       TaskEnvironment& env);
 
 } // namespace qiln

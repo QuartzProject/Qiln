@@ -65,8 +65,13 @@ bool unavailable(HostCall& call, void* user) {
 }
 
 void bindRunner(Sandbox& sb, std::string* captured) {
-    for (const quartz::ir::HostImport& imp : sb.program().module->imports) {
-        sb.bind(imp.name, unavailable, const_cast<std::string*>(&imp.name));
+    const quartz::vm::Program& program = sb.program();
+    for (std::size_t i = 0; i < program.module->imports.size(); ++i) {
+        // Only what some function calls needs a binding (D165); a test that calls it fails with its name.
+        if (program.importRequired[i]) {
+            const std::string& name = program.module->imports[i].name;
+            sb.bind(name, unavailable, const_cast<std::string*>(&name));
+        }
     }
     sb.bind("print", printLine, captured);
     sb.bind("int.ticks", ticks);

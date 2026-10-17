@@ -86,11 +86,12 @@ std::string pluginTasks(const std::string& package) {
 
 import org.quartzlang.qiln.task.*
 
-pub fn hello(t: TaskContext) -> Result<str, str> {{
+pub fn hello(t: TaskContext) -> Result<(), str> {{
     if !t.writeBuildText("hello.txt", "Hello from {{t.projectName}}\n") {{
         return Err("cannot write hello.txt")
     }}
-    return Ok("wrote build/hello.txt")
+    log("wrote build/hello.txt")
+    return Ok(())
 }}
 )",
                        package);

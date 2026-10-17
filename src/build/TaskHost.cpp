@@ -100,7 +100,7 @@ bool sources(HostCall& call, void* user) {
     const auto& imports = call.sandbox.program().module->imports;
     quartz::ir::TypeId listType = quartz::ir::kVoid;
     for (const auto& imp : imports) {
-        if (imp.name == "TaskContext.sources") {
+        if (imp.name == "org.quartzlang.qiln.task.TaskContext.sources") {
             listType = imp.result;
         }
     }
@@ -151,6 +151,24 @@ bool log(HostCall& call, void* user) {
     return true;
 }
 
+// `Result<(), str>`, or the `Result<str, str>` of Qiln 0.1 whose Ok was a summary line.
+std::optional<bool> actionResult(const quartz::ir::TypeTable& types, quartz::ir::TypeId result) {
+    if (types.kind(result) != quartz::ir::TypeKind::Enum) {
+        return std::nullopt;
+    }
+    const quartz::ir::TypeInfo& info = types.info(result);
+    if (info.variants.size() != 2 || info.variants[0].name != "Ok" || info.variants[1].name != "Err" ||
+        info.variants[0].payload.size() != 1 || info.variants[1].payload != std::vector{quartz::ir::kStr}) {
+        return std::nullopt;
+    }
+    quartz::ir::TypeId ok = info.variants[0].payload[0];
+    if (ok == quartz::ir::kStr) {
+        return true;
+    }
+    bool unit = types.kind(ok) == quartz::ir::TypeKind::Tuple && types.info(ok).elems.empty();
+    return unit ? std::optional(false) : std::nullopt;
+}
+
 } // namespace
 
 std::expected<std::shared_ptr<const quartz::vm::Program>, std::string>
@@ -165,18 +183,18 @@ compilePluginTasks(const std::string& plugin, const std::vector<quartz::SourceIn
     return out.program;
 }
 
-std::expected<std::string, std::string> runPluginTask(const std::shared_ptr<const quartz::vm::Program>& program,
+std::expected<TaskOutcome, std::string> runPluginTask(const std::shared_ptr<const quartz::vm::Program>& program,
                                                       TaskEnvironment& e) {
     const TaskSpec& t = *e.task;
     std::uint32_t f = program->findFunction(t.action);
     const auto& types = program->module->types;
-    std::string wanted = std::format("pub fn {}(t: TaskContext) -> Result<str, str>", t.action);
+    std::string wanted = std::format("pub fn {}(t: TaskContext) -> Result<(), str>", t.action);
     if (f == ~0U) {
         return std::unexpected(std::format("build plugin {} has no task function '{}'", t.plugin, t.action));
     }
     const auto& fn = program->functions[f];
-    if (fn.params.size() != 1 || types.kind(fn.params[0]) != quartz::ir::TypeKind::Handle ||
-        types.name(fn.result) != "Result<str, str>" || fn.isSuspend) {
+    std::optional<bool> legacy = actionResult(types, fn.result);
+    if (fn.params.size() != 1 || types.kind(fn.params[0]) != quartz::ir::TypeKind::Handle || !legacy || fn.isSuspend) {
         return std::unexpected(std::format("'{}' of {} must be declared as {}", t.action, t.plugin, wanted));
     }
     quartz::vm::Limits limits;
@@ -204,10 +222,10 @@ std::expected<std::string, std::string> runPluginTask(const std::shared_ptr<cons
         {"TaskContext.readBuild", readBuild},
         {"TaskContext.writeBuild", writeBuild},
         {"TaskContext.writeBuildText", writeBuild},
-        {"org.quartzlang.qiln.task.log", log},
+        {"log", log},
     };
     for (const Entry& entry : kEntries) {
-        sb.bind(entry.name, entry.fn, &e);
+        sb.bind(std::string("org.quartzlang.qiln.task.") + std::string(entry.name), entry.fn, &e);
     }
     if (auto s = sb.start(); !s) {
         return std::unexpected(s.error().describe());
@@ -219,11 +237,15 @@ std::expected<std::string, std::string> runPluginTask(const std::shared_ptr<cons
         return std::unexpected(r.error().describe());
     }
     auto slots = sb.resultSlots(fn.resultSlots);
-    std::string_view text = static_cast<const quartz::vm::Str*>(slots[1].p)->view();
     if (slots[0].i != 0) {
-        return std::unexpected(std::string(text));
+        return std::unexpected(std::string(static_cast<const quartz::vm::Str*>(slots[1].p)->view()));
     }
-    return std::string(text);
+    TaskOutcome out;
+    out.deprecatedResult = *legacy;
+    if (*legacy) {
+        out.summary = std::string(static_cast<const quartz::vm::Str*>(slots[1].p)->view());
+    }
+    return out;
 }
 
 } // namespace qiln

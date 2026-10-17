@@ -37,6 +37,12 @@ inline bool returnStr(quartz::vm::HostCall& call, std::string_view text) {
 
 inline Context& context(void* user) { return *static_cast<Context*>(user); }
 
+/// The package of the build API; its host functions are bound by their full names (D164).
+inline constexpr std::string_view kApiPackage = "org.quartzlang.qiln.";
+
+/// True when some function of the program calls the import: `start` only demands a binding for those (D165).
+bool called(const quartz::vm::Sandbox& sb, std::string_view name);
+
 bool validName(std::string_view s);       // a package segment: `[a-z][a-z0-9_]*`
 bool validIdentifier(std::string_view s); // a Quartz identifier
 bool validTaskName(std::string_view s);   // `[A-Za-z][A-Za-z0-9_-]*`

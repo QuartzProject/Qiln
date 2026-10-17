@@ -6,6 +6,7 @@
 #include <expected>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -46,6 +47,7 @@ private:
     Compiler compiler_;
     std::map<std::string, std::string> artifacts_; // project path -> artifact relative to its build directory
     std::map<std::string, std::shared_ptr<const quartz::vm::Program>> pluginPrograms_;
+    std::set<std::string> warnedResult_;
 
     std::expected<int, std::string> execute(const TaskRef& t);
     std::expected<void, std::string> check(const ProjectModel& p);

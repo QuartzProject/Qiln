@@ -47,7 +47,7 @@ impl int {
 /// Compiles projects once per run and remembers the result.
 class Compiler {
 public:
-    explicit Compiler(Workspace& ws) : ws_(ws) {}
+    Compiler(Workspace& ws, bool denyWarnings) : ws_(ws), denyWarnings_(denyWarnings) {}
 
     std::expected<SourceSet, std::string> sources(const ProjectModel& p, bool tests);
     /// The project compiled with its tests or without; diagnostics are printed the first time.
@@ -56,9 +56,12 @@ public:
     std::expected<void, std::string> checkBuildPlugin(const ProjectModel& p);
     /// `package.toml` as the Quartz core reads it, carried in archives and modules.
     static std::string packageToml(const ProjectModel& p);
+    /// The warning levels a project compiles with: `*=error` when warnings are denied, then its own rules.
+    [[nodiscard]] std::vector<quartz::RuleSetting> rulesFor(const ProjectModel& p) const;
 
 private:
     Workspace& ws_;
+    bool denyWarnings_ = false;
     std::map<std::pair<std::string, bool>, Compiled> done_;
     std::map<std::string, std::vector<quartz::SourceInput>> libraries_;
     std::map<std::string, RuntimePlugin> runtimePlugins_;

@@ -32,6 +32,12 @@ struct TaskSpec {
     std::map<std::string, std::string> options;
 };
 
+/// The level of one compiler warning rule (`*` for all), in the order the script set them.
+struct RuleSpec {
+    std::string rule;
+    std::uint8_t level = 1; // RuleLevel: 0 ignore, 1 warning, 2 error
+};
+
 struct Limits {
     std::int64_t fuel = 100'000'000;
     std::int64_t memoryMiB = 64;
@@ -49,6 +55,7 @@ struct ProjectModel {
     std::string entry = "main";
     bool denyWarnings = false;
     bool hostOnly = false;
+    std::vector<RuleSpec> rules;
     std::vector<std::string> mainDirs; // empty means `src`
     std::vector<std::string> testDirs; // empty means `test`
     std::vector<std::string> interfaces;

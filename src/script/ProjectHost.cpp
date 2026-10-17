@@ -101,6 +101,27 @@ bool setDenyWarnings(HostCall& call, void* user) {
     return true;
 }
 
+bool setRuleLevel(HostCall& call, void* user) {
+    std::string_view rule = str(call, 1);
+    auto rules = quartz::warningRules();
+    if (rule != "*" && std::find(rules.begin(), rules.end(), rule) == rules.end()) {
+        std::string known;
+        for (std::string_view r : rules) {
+            known += std::format("{}{}", known.empty() ? "" : ", ", r);
+        }
+        return fail(call, std::format("'{}' is not a warning rule; the rules are * (all), {}", rule, known));
+    }
+    if (call.args[2].i < 0 || call.args[2].i > 2) {
+        return fail(call, "unknown rule level");
+    }
+    auto& list = project(call, user).rules;
+    if (list.size() >= 256) {
+        return fail(call, "too many warning rules");
+    }
+    list.push_back({std::string(rule), static_cast<std::uint8_t>(call.args[2].i)});
+    return true;
+}
+
 bool setHostOnly(HostCall& call, void* user) {
     project(call, user).hostOnly = call.args[1].u != 0;
     return true;
@@ -368,6 +389,7 @@ void bindProject(quartz::vm::Sandbox& sb, Context& ctx) {
         {"Project.setEntry", setEntry},
         {"Project.denyWarnings", getDenyWarnings},
         {"Project.setDenyWarnings", setDenyWarnings},
+        {"Project.warning", setRuleLevel},
         {"Project.hostOnly", getHostOnly},
         {"Project.setHostOnly", setHostOnly},
         {"Project.packageName", getPackageName},
@@ -393,7 +415,11 @@ void bindProject(quartz::vm::Sandbox& sb, Context& ctx) {
         {"Task.option", taskOption},
     };
     for (const Entry& e : kEntries) {
-        sb.bind(e.name, ctx.project != nullptr ? e.fn : noProject, &ctx);
+        std::string name = std::string(kApiPackage) + std::string(e.name);
+        // The prelude's methods on Project call these, so a settings script carries the calls it never makes.
+        if (ctx.project != nullptr || called(sb, name)) {
+            sb.bind(name, ctx.project != nullptr ? e.fn : noProject, &ctx);
+        }
     }
 }
 

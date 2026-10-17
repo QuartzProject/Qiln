@@ -47,9 +47,6 @@ std::expected<void, std::string> TaskRunner::check(const ProjectModel& p) {
     if (!c) {
         return std::unexpected(c.error());
     }
-    if ((p.denyWarnings || options_.denyWarnings) && (*c)->warnings > 0) {
-        return std::unexpected(std::format("{} warning(s) and warnings are denied", (*c)->warnings));
-    }
     std::printf("  checked %s\n", p.packageName().c_str());
     return {};
 }
@@ -63,9 +60,6 @@ std::expected<void, std::string> TaskRunner::build(const ProjectModel& p) {
     auto c = compiler_.compile(p, false);
     if (!c) {
         return std::unexpected(c.error());
-    }
-    if ((p.denyWarnings || options_.denyWarnings) && (*c)->warnings > 0) {
-        return std::unexpected(std::format("{} warning(s) and warnings are denied", (*c)->warnings));
     }
     fs::path dir = ws_.projectDir(p);
     std::vector<std::uint8_t> artifact;
@@ -259,8 +253,14 @@ std::expected<void, std::string> TaskRunner::pluginTask(const TaskRef& t) {
     if (!r) {
         return std::unexpected(r.error());
     }
-    if (!r->empty()) {
-        std::printf("  %s\n", r->c_str());
+    if (r->deprecatedResult && warnedResult_.insert(spec.plugin + "." + spec.action).second) {
+        std::fprintf(stderr,
+                     "warning: '%s' of build plugin %s returns Result<str, str>, which is deprecated; return "
+                     "Result<(), str> and log the summary\n",
+                     spec.action.c_str(), spec.plugin.c_str());
+    }
+    if (!r->summary.empty()) {
+        std::printf("  %s\n", r->summary.c_str());
     }
     return {};
 }

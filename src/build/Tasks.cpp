@@ -57,7 +57,8 @@ std::vector<TaskRef> tasksOf(const ProjectModel& p) {
     return out;
 }
 
-TaskRunner::TaskRunner(Workspace& ws, RunOptions options) : ws_(ws), options_(std::move(options)), compiler_(ws) {}
+TaskRunner::TaskRunner(Workspace& ws, RunOptions options)
+    : ws_(ws), options_(std::move(options)), compiler_(ws, options_.denyWarnings) {}
 
 TaskRunner::~TaskRunner() = default;
 
