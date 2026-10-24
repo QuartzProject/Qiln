@@ -1,6 +1,7 @@
 #include "build/TaskHost.hpp"
 
 #include "QilnApi.hpp"
+#include "build/Console.hpp"
 #include "support/Files.hpp"
 
 #include <cstdio>
@@ -48,8 +49,8 @@ std::expected<fs::path, std::string> inside(const fs::path& base, std::string_vi
     return full;
 }
 
-bool readInto(HostCall& call, const fs::path& base, bool binary) {
-    auto path = inside(base, str(call, 1));
+bool readInto(HostCall& call, TaskEnvironment& e, bool build, bool binary) {
+    auto path = inside(build ? e.buildDir : e.projectDir, str(call, 1));
     if (!path) {
         return fail(call, path.error());
     }
@@ -57,6 +58,7 @@ bool readInto(HostCall& call, const fs::path& base, bool binary) {
     if (!bytes) {
         return fail(call, bytes.error());
     }
+    e.read.emplace_back(std::format("{}:{}", build ? "build" : "project", str(call, 1)), contentHash(*bytes));
     if (!*bytes) {
         call.result.p = nullptr;
         return true;
@@ -122,15 +124,17 @@ bool sources(HostCall& call, void* user) {
 bool exists(HostCall& call, void* user) {
     auto path = inside(env(user).projectDir, str(call, 1));
     std::error_code ec;
-    call.result.u = path && fs::exists(*path, ec) ? 1 : 0;
+    bool found = path && fs::exists(*path, ec);
+    env(user).read.emplace_back(std::format("exists:{}", str(call, 1)), existenceHash(found));
+    call.result.u = found ? 1 : 0;
     return true;
 }
 
-bool readText(HostCall& call, void* user) { return readInto(call, env(user).projectDir, false); }
+bool readText(HostCall& call, void* user) { return readInto(call, env(user), false, false); }
 
-bool readBytes(HostCall& call, void* user) { return readInto(call, env(user).projectDir, true); }
+bool readBytes(HostCall& call, void* user) { return readInto(call, env(user), false, true); }
 
-bool readBuild(HostCall& call, void* user) { return readInto(call, env(user).buildDir, true); }
+bool readBuild(HostCall& call, void* user) { return readInto(call, env(user), true, true); }
 
 bool writeBuild(HostCall& call, void* user) {
     auto path = inside(env(user).buildDir, str(call, 1));
@@ -141,15 +145,38 @@ bool writeBuild(HostCall& call, void* user) {
     if (!call.charge(static_cast<std::int64_t>(data.size() / kBytesPerFuel))) {
         return false;
     }
-    call.result.u = writeAtomically(*path, data) ? 1 : 0;
+    bool ok = writeAtomically(*path, data).has_value();
+    if (ok) {
+        env(user).written.emplace_back(std::string(str(call, 1)), blake2b256(bytesOf(data)));
+    }
+    call.result.u = ok ? 1 : 0;
     return true;
 }
 
 bool log(HostCall& call, void* user) {
-    std::string_view text = str(call, 0);
-    std::printf("  [%s] %.*s\n", env(user).task->name.c_str(), static_cast<int>(text.size()), text.data());
+    say(std::format("  [{}] {}", env(user).task->name, str(call, 0)));
     return true;
 }
+
+} // namespace
+
+Hash32 contentHash(const std::optional<std::vector<std::uint8_t>>& bytes) {
+    Hasher h;
+    if (bytes) {
+        h.add("file").add(textOf(*bytes));
+    } else {
+        h.add("absent");
+    }
+    return h.finish();
+}
+
+Hash32 existenceHash(bool exists) {
+    Hasher h;
+    h.add(exists ? "exists" : "absent");
+    return h.finish();
+}
+
+namespace {
 
 // `Result<(), str>`, or the `Result<str, str>` of Qiln 0.1 whose Ok was a summary line.
 std::optional<bool> actionResult(const quartz::ir::TypeTable& types, quartz::ir::TypeId result) {

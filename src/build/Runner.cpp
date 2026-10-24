@@ -1,5 +1,7 @@
 #include "build/Runner.hpp"
 
+#include "build/Console.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -46,7 +48,7 @@ bool logLine(HostCall& call, void*) {
             .append("=")
             .append(static_cast<const quartz::vm::Str*>(fields->data[i + 1].p)->view());
     }
-    std::fprintf(stderr, "%s\n", line.c_str());
+    complain(line + "\n");
     return true;
 }
 
@@ -148,20 +150,21 @@ std::expected<bool, std::string> runTests(const Compiled& compiled, const Limits
         double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         if (r) {
             ++passed;
-            std::printf("  ok      %s (%.1f ms)\n", name.c_str(), ms);
+            say(std::format("  ok      {} ({:.1f} ms)", name, ms));
             continue;
         }
         ++failed;
-        std::printf("  FAILED  %s: %s\n", name.c_str(), r.error().describe().c_str());
+        say(std::format("  FAILED  {}: {}", name, r.error().describe()));
         if (!printed.empty()) {
-            std::printf("%s", printed.c_str());
+            printed.pop_back();
+            say(printed);
         }
     }
     if (passed + failed == 0) {
-        std::printf("  no tests%s\n", filter.empty() ? "" : " match the filter");
+        say(std::format("  no tests{}", filter.empty() ? "" : " match the filter"));
         return true;
     }
-    std::printf("  %zu passed, %zu failed\n", passed, failed);
+    say(std::format("  {} passed, {} failed", passed, failed));
     return failed == 0;
 }
 

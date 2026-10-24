@@ -1,6 +1,7 @@
 #include "build/Compile.hpp"
 
 #include "QilnApi.hpp"
+#include "build/Console.hpp"
 #include "repo/Archive.hpp"
 #include "support/Files.hpp"
 
@@ -113,6 +114,7 @@ std::expected<void, std::string> Compiler::addPackages(const std::vector<std::st
     if (roots.empty()) {
         return {};
     }
+    std::lock_guard lock(packages_);
     auto graph = ws_.graph(false);
     if (!graph) {
         return std::unexpected(graph.error());
@@ -191,7 +193,9 @@ std::expected<void, std::string> Compiler::addPackages(const std::vector<std::st
             if (!loaded) {
                 return std::unexpected(std::format("{}: {}", label, loaded.error()));
             }
-            cached = runtimePlugins_.emplace(p.name, RuntimePlugin{p.name, std::move(loaded->program)}).first;
+            cached =
+                runtimePlugins_.emplace(p.name, RuntimePlugin{p.name, std::move(loaded->program), toHex(p.checksum)})
+                    .first;
         }
         if (inside.contains(p.name)) {
             auto m = quartz::parseManifest(cached->second.program->module->manifest);
@@ -206,7 +210,23 @@ std::expected<void, std::string> Compiler::addPackages(const std::vector<std::st
     return {};
 }
 
-std::expected<SourceSet, std::string> Compiler::sources(const ProjectModel& p, bool tests) {
+template <class T>
+Compiler::Once<T>& Compiler::slot(std::map<Key, std::unique_ptr<Once<T>>>& map, const Key& key) {
+    std::lock_guard lock(mutex_);
+    auto& entry = map[key];
+    if (!entry) {
+        entry = std::make_unique<Once<T>>();
+    }
+    return *entry;
+}
+
+std::expected<const SourceSet*, std::string> Compiler::sources(const ProjectModel& p, bool tests) {
+    Once<SourceSet>& s = slot(sources_, {p.path, tests});
+    std::call_once(s.flag, [&] { s.value = readSources(p, tests); });
+    return s.value.transform([](const SourceSet& set) { return &set; });
+}
+
+std::expected<SourceSet, std::string> Compiler::readSources(const ProjectModel& p, bool tests) {
     SourceSet out;
     bool buildPlugin = p.kind == ArtifactKind::BuildPlugin;
     if (buildPlugin) {
@@ -277,10 +297,12 @@ std::expected<SourceSet, std::string> Compiler::sources(const ProjectModel& p, b
 }
 
 std::expected<const Compiled*, std::string> Compiler::compile(const ProjectModel& p, bool tests) {
-    auto key = std::pair(p.path, tests);
-    if (auto it = done_.find(key); it != done_.end()) {
-        return &it->second;
-    }
+    Once<Compiled>& s = slot(compiled_, {p.path, tests});
+    std::call_once(s.flag, [&] { s.value = compileNow(p, tests); });
+    return s.value.transform([](const Compiled& c) { return &c; });
+}
+
+std::expected<Compiled, std::string> Compiler::compileNow(const ProjectModel& p, bool tests) {
     auto set = sources(p, tests);
     if (!set) {
         return std::unexpected(set.error());
@@ -292,29 +314,38 @@ std::expected<const Compiled*, std::string> Compiler::compile(const ProjectModel
     if (module) {
         opts.manifest = packageToml(p);
     }
-    quartz::CompileOutput out = quartz::compile(set->inputs, opts);
-    std::fputs(out.diagnostics.c_str(), stderr);
+    quartz::CompileOutput out = quartz::compile((*set)->inputs, opts);
+    complain(out.diagnostics);
     if (!out.program) {
         return std::unexpected(failure(out, std::format("project {}", p.path)));
     }
-    Compiled c{out.program, std::move(out.binary), out.warnings, std::move(set->plugins)};
-    return &done_.emplace(key, std::move(c)).first->second;
+    return Compiled{out.program, std::move(out.binary), out.warnings, (*set)->plugins};
+}
+
+std::expected<std::vector<quartz::SourceInput>, std::string> Compiler::apiSources(const ProjectModel& p) const {
+    std::vector<quartz::SourceInput> out;
+    auto files = filesOf(ws_, p, {"api"}, "api");
+    if (!files) {
+        return std::unexpected(files.error());
+    }
+    if (auto r = read(ws_, *files, false, out); !r) {
+        return std::unexpected(r.error());
+    }
+    return out;
 }
 
 std::expected<void, std::string> Compiler::checkBuildPlugin(const ProjectModel& p) {
     std::vector<quartz::SourceInput> inputs = {{"<qiln>/qiln.qzi", std::string(api::kQilnQzi), true},
                                                {"<qiln>/qiln.qz", std::string(api::kQilnQz), true}};
-    auto files = filesOf(ws_, p, {"api"}, "api");
-    if (!files) {
-        return std::unexpected(files.error());
+    auto api = apiSources(p);
+    if (!api) {
+        return std::unexpected(api.error());
     }
-    if (auto r = read(ws_, *files, false, inputs); !r) {
-        return r;
-    }
+    inputs.insert(inputs.end(), api->begin(), api->end());
     quartz::CompileOptions opts;
     opts.rules = rulesFor(p);
     quartz::CompileOutput out = quartz::compile(inputs, opts);
-    std::fputs(out.diagnostics.c_str(), stderr);
+    complain(out.diagnostics);
     if (!out.program) {
         return std::unexpected(failure(out, std::format("the API of build plugin {}", p.path)));
     }

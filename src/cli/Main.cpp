@@ -1,5 +1,6 @@
 #include "cli/Commands.hpp"
 
+#include <charconv>
 #include <cstdio>
 #include <cstring>
 #include <format>
@@ -20,6 +21,7 @@ int usage(int code) {
         "options: -p <dir>  the project directory (default .)\n"
         "         -P key=value  a property build scripts read with p.property(\"key\")\n"
         "         --filter <text> (test)  --to <dir or URL> (publish)  --sign <seed file> (publish)\n"
+        "         -j <n>  tasks at once (default: one per hardware thread)  --rerun  ignore up-to-date checks\n"
         "         --deny-warnings  --update  --locked  --allow-key-change  --no-cache  -q\n"
         "         --allow-insecure-localhost  plain http:// to 127.0.0.1, [::1] or localhost (test servers)\n");
     return code;
@@ -58,6 +60,17 @@ std::optional<Args> parse(int argc, char** argv) {
             a.options.locked = true;
         } else if (arg == "--allow-key-change") {
             a.options.allowKeyChange = true;
+        } else if (((arg == "-j" || arg == "--jobs") && value) || (arg.starts_with("-j") && arg.size() > 2)) {
+            std::string_view n = arg.size() > 2 && arg[1] == 'j' ? arg.substr(2) : std::string_view(argv[++i]);
+            std::size_t jobs = 0;
+            auto r = std::from_chars(n.data(), n.data() + n.size(), jobs);
+            if (r.ec != std::errc{} || r.ptr != n.data() + n.size() || jobs == 0 || jobs > 256) {
+                std::fprintf(stderr, "-j takes a number of tasks from 1 to 256\n");
+                return std::nullopt;
+            }
+            a.run.jobs = jobs;
+        } else if (arg == "--rerun") {
+            a.run.rerun = true;
         } else if (arg == "--allow-insecure-localhost") {
             a.options.allowInsecureLocalhost = true;
         } else if (arg == "--no-cache") {

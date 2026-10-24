@@ -1,3 +1,4 @@
+#include "build/Console.hpp"
 #include "build/Runner.hpp"
 #include "build/TaskHost.hpp"
 #include "build/Tasks.hpp"
@@ -37,24 +38,41 @@ std::expected<Seed, std::string> signingSeed(const std::string& option) {
 
 } // namespace
 
-std::expected<void, std::string> TaskRunner::check(const ProjectModel& p) {
+std::expected<TaskRunner::Outcome, std::string> TaskRunner::check(const ProjectModel& p) {
+    auto fp = fingerprint(p, "check");
+    if (!fp) {
+        return std::unexpected(fp.error());
+    }
+    std::pair<std::string, Hash32> inputs("inputs", *fp);
+    if (upToDate(p, "check", inputs)) {
+        return Outcome{0, true};
+    }
     if (p.kind == ArtifactKind::BuildPlugin) {
         if (auto r = compiler_.checkBuildPlugin(p); !r) {
-            return r;
+            return std::unexpected(r.error());
         }
     }
     auto c = compiler_.compile(p, true);
     if (!c) {
         return std::unexpected(c.error());
     }
-    std::printf("  checked %s\n", p.packageName().c_str());
-    return {};
+    say(std::format("  checked {}", p.packageName()));
+    saveStamp(p, "check", Stamp{{inputs}, {}});
+    return Outcome{};
 }
 
-std::expected<void, std::string> TaskRunner::build(const ProjectModel& p) {
+std::expected<TaskRunner::Outcome, std::string> TaskRunner::build(const ProjectModel& p) {
+    auto fp = fingerprint(p, "build");
+    if (!fp) {
+        return std::unexpected(fp.error());
+    }
+    std::pair<std::string, Hash32> inputs("inputs", *fp);
+    if (upToDate(p, "build", inputs)) {
+        return Outcome{0, true};
+    }
     if (p.kind == ArtifactKind::BuildPlugin) {
         if (auto r = compiler_.checkBuildPlugin(p); !r) {
-            return r;
+            return std::unexpected(r.error());
         }
     }
     auto c = compiler_.compile(p, false);
@@ -93,15 +111,23 @@ std::expected<void, std::string> TaskRunner::build(const ProjectModel& p) {
     if (auto w = writeAtomically(dir / "build" / name, artifact); !w) {
         return std::unexpected(w.error());
     }
-    artifacts_[p.path] = name;
-    std::printf("  wrote %s (%zu bytes)\n", ws_.displayPath(dir / "build" / name).c_str(), artifact.size());
-    return {};
+    say(std::format("  wrote {} ({} bytes)", ws_.displayPath(dir / "build" / name), artifact.size()));
+    saveStamp(p, "build", Stamp{{inputs}, {{name, blake2b256(artifact)}}});
+    return Outcome{};
 }
 
-std::expected<void, std::string> TaskRunner::test(const ProjectModel& p) {
+std::expected<TaskRunner::Outcome, std::string> TaskRunner::test(const ProjectModel& p) {
+    auto fp = fingerprint(p, "test");
+    if (!fp) {
+        return std::unexpected(fp.error());
+    }
+    std::pair<std::string, Hash32> inputs("inputs", *fp);
+    if (upToDate(p, "test", inputs)) {
+        return Outcome{0, true};
+    }
     if (p.kind == ArtifactKind::BuildPlugin) {
         if (auto r = compiler_.checkBuildPlugin(p); !r) {
-            return r;
+            return std::unexpected(r.error());
         }
     }
     auto c = compiler_.compile(p, true);
@@ -115,7 +141,8 @@ std::expected<void, std::string> TaskRunner::test(const ProjectModel& p) {
     if (!*ok) {
         return std::unexpected("some tests failed");
     }
-    return {};
+    saveStamp(p, "test", Stamp{{inputs}, {}});
+    return Outcome{};
 }
 
 std::expected<int, std::string> TaskRunner::runEntry(const ProjectModel& p) {
@@ -161,7 +188,7 @@ std::expected<void, std::string> TaskRunner::publish(const ProjectModel& p) {
     if (!seed) {
         return std::unexpected(seed.error());
     }
-    auto bytes = readLimited(ws_.projectDir(p) / "build" / artifacts_[p.path], 64u << 20);
+    auto bytes = readLimited(ws_.projectDir(p) / "build" / artifactName(p), 64u << 20);
     if (!bytes || !*bytes) {
         return std::unexpected("the artifact of " + p.path + " is missing; run build first");
     }
@@ -210,7 +237,7 @@ std::expected<void, std::string> TaskRunner::publish(const ProjectModel& p) {
     if (!done) {
         return std::unexpected(done.error());
     }
-    std::printf("  %s\n", done->c_str());
+    say(std::format("  {}", *done));
     return {};
 }
 
@@ -222,12 +249,30 @@ std::expected<void, std::string> TaskRunner::clean(const ProjectModel& p) {
         return std::unexpected(std::format("cannot delete {}: {}", ws_.displayPath(dir), ec.message()));
     }
     if (n > 0) {
-        std::printf("  deleted %s\n", ws_.displayPath(dir).c_str());
+        say(std::format("  deleted {}", ws_.displayPath(dir)));
     }
     return {};
 }
 
-std::expected<void, std::string> TaskRunner::pluginTask(const TaskRef& t) {
+std::expected<std::shared_ptr<const quartz::vm::Program>, std::string>
+TaskRunner::pluginProgram(const LoadedPlugin& plugin) {
+    std::shared_ptr<std::once_flag> once;
+    {
+        std::lock_guard lock(mutex_);
+        auto& slot = pluginOnce_[plugin.name];
+        slot = slot ? slot : std::make_shared<std::once_flag>();
+        once = slot;
+    }
+    std::call_once(*once, [&] {
+        auto compiled = compilePluginTasks(plugin.name, plugin.tasks);
+        std::lock_guard lock(mutex_);
+        pluginPrograms_.insert_or_assign(plugin.name, std::move(compiled));
+    });
+    std::lock_guard lock(mutex_);
+    return pluginPrograms_.at(plugin.name);
+}
+
+std::expected<TaskRunner::Outcome, std::string> TaskRunner::pluginTask(const TaskRef& t) {
     const TaskSpec& spec = *t.spec;
     auto plugins = ws_.plugins();
     if (!plugins) {
@@ -238,42 +283,70 @@ std::expected<void, std::string> TaskRunner::pluginTask(const TaskRef& t) {
     if (plugin == (*plugins)->end()) {
         return std::unexpected(std::format("build plugin {} is not loaded", spec.plugin));
     }
-    auto& program = pluginPrograms_[spec.plugin];
-    if (!program) {
-        auto compiled = compilePluginTasks(spec.plugin, plugin->tasks);
-        if (!compiled) {
-            return std::unexpected(compiled.error());
-        }
-        program = *compiled;
-    }
     const ProjectModel& p = *t.project;
     TaskEnvironment env;
     env.project = &p;
     env.task = &spec;
     env.projectDir = ws_.projectDir(p);
     env.buildDir = env.projectDir / "build";
-    env.artifact = artifacts_.contains(p.path) ? artifacts_[p.path] : artifactName(p);
-    auto set = compiler_.sources(p, false);
-    if (set) {
+    env.artifact = artifactName(p);
+    if (auto set = compiler_.sources(p, false)) {
         std::string prefix = p.dir.empty() ? "" : p.dir + "/";
-        for (const std::string& f : set->own) {
+        for (const std::string& f : (*set)->own) {
             env.sources.push_back(f.substr(prefix.size()));
         }
     }
-    auto r = runPluginTask(program, env);
+    // Everything the task sees besides the files it reads, which the stamp records one by one.
+    Hasher h;
+    h.add(QILN_VERSION).add(QILN_QUARTZ_VERSION).add(plugin->name).add(plugin->version).add(spec.action);
+    for (const quartz::SourceInput& in : plugin->tasks) {
+        h.add(in.name).add(in.text);
+    }
+    for (const auto* options : {&spec.options, &p.options}) {
+        h.add(std::to_string(options->size()));
+        for (const auto& [k, v] : *options) {
+            h.add(k).add(v);
+        }
+    }
+    h.add(spec.name).add(p.path).add(p.name).add(p.version).add(p.packageName()).add(env.artifact);
+    for (const std::string& f : env.sources) {
+        h.add(f);
+    }
+    std::pair<std::string, Hash32> inputs("plugin", h.finish());
+    if (upToDate(p, spec.name, inputs)) {
+        return Outcome{0, true};
+    }
+    auto program = pluginProgram(*plugin);
+    if (!program) {
+        return std::unexpected(program.error());
+    }
+    auto r = runPluginTask(*program, env);
     if (!r) {
         return std::unexpected(r.error());
     }
-    if (r->deprecatedResult && warnedResult_.insert(spec.plugin + "." + spec.action).second) {
-        std::fprintf(stderr,
-                     "warning: '%s' of build plugin %s returns Result<str, str>, which is deprecated; return "
-                     "Result<(), str> and log the summary\n",
-                     spec.action.c_str(), spec.plugin.c_str());
+    bool warn = false;
+    if (r->deprecatedResult) {
+        std::lock_guard lock(mutex_);
+        warn = warnedResult_.insert(spec.plugin + "." + spec.action).second;
+    }
+    if (warn) {
+        complain(std::format("warning: '{}' of build plugin {} returns Result<str, str>, which is deprecated; return "
+                             "Result<(), str> and log the summary\n",
+                             spec.action, spec.plugin));
     }
     if (!r->summary.empty()) {
-        std::printf("  %s\n", r->summary.c_str());
+        say(std::format("  {}", r->summary));
     }
-    return {};
+    Stamp stamp{{inputs}, {}};
+    std::map<std::string, Hash32> read(env.read.begin(), env.read.end());
+    std::map<std::string, Hash32> written;
+    for (auto& [path, hash] : env.written) {
+        written[path] = hash;
+    }
+    stamp.inputs.insert(stamp.inputs.end(), read.begin(), read.end());
+    stamp.outputs.assign(written.begin(), written.end());
+    saveStamp(p, spec.name, stamp);
+    return Outcome{};
 }
 
 } // namespace qiln

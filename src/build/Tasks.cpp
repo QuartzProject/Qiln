@@ -1,9 +1,11 @@
 #include "build/Tasks.hpp"
 
+#include "build/Console.hpp"
+#include "build/TaskHost.hpp"
+#include "support/Files.hpp"
+
 #include <algorithm>
-#include <cstdio>
 #include <format>
-#include <set>
 
 namespace qiln {
 
@@ -25,11 +27,40 @@ constexpr Builtin kBuiltins[] = {
     {"clean", "build", "Deletes the build directory", ""},
 };
 
-std::string qualified(const ProjectModel& p, std::string_view task) {
-    return p.path == ":" ? std::format(":{}", task) : std::format("{}:{}", p.path, task);
+constexpr std::size_t kMaxStamp = 64u << 20;
+constexpr std::size_t kMaxRecorded = 1u << 30;
+
+fs::path stampPath(const fs::path& projectDir, std::string_view task) {
+    return projectDir / "build" / ".qiln" / std::format("{}.stamp", task);
+}
+
+// The hash a recorded read of a plugin task has now; nullopt for an id this version does not know.
+std::optional<Hash32> recorded(const fs::path& projectDir, std::string_view id) {
+    std::size_t colon = id.find(':');
+    std::string path(id.substr(colon == std::string_view::npos ? id.size() : colon + 1));
+    if (colon == std::string_view::npos || !safeRelativePath(path)) {
+        return std::nullopt;
+    }
+    std::string_view kind = id.substr(0, colon);
+    if (kind == "exists") {
+        std::error_code ec;
+        return existenceHash(fs::exists(projectDir / path, ec));
+    }
+    if (kind != "project" && kind != "build") {
+        return std::nullopt;
+    }
+    auto bytes = readLimited(kind == "build" ? projectDir / "build" / path : projectDir / path, kMaxRecorded);
+    if (!bytes) {
+        return std::nullopt;
+    }
+    return contentHash(*bytes);
 }
 
 } // namespace
+
+std::string qualifiedName(const ProjectModel& p, std::string_view task) {
+    return p.path == ":" ? std::format(":{}", task) : std::format("{}:{}", p.path, task);
+}
 
 std::vector<TaskRef> tasksOf(const ProjectModel& p) {
     std::vector<TaskRef> out;
@@ -62,124 +93,121 @@ TaskRunner::TaskRunner(Workspace& ws, RunOptions options)
 
 TaskRunner::~TaskRunner() = default;
 
-std::expected<int, std::string> TaskRunner::run(const std::vector<std::string>& requests, const ProjectModel* current) {
-    std::map<std::string, std::vector<TaskRef>> all;
-    for (const ProjectModel& p : ws_.model.projects) {
-        all[p.path] = tasksOf(p);
-    }
-    auto find = [&](const std::string& path, const std::string& name) -> const TaskRef* {
-        auto it = all.find(path);
-        if (it == all.end()) {
-            return nullptr;
-        }
-        for (const TaskRef& t : it->second) {
-            if (t.name == name) {
-                return &t;
-            }
-        }
-        return nullptr;
-    };
-    std::vector<const TaskRef*> order;
-    std::set<const TaskRef*> done;
-    std::vector<const TaskRef*> stack;
-    auto visit = [&](auto& self, const TaskRef* t) -> std::expected<void, std::string> {
-        if (done.contains(t)) {
-            return {};
-        }
-        if (std::find(stack.begin(), stack.end(), t) != stack.end()) {
-            std::string cycle;
-            for (const TaskRef* s : stack) {
-                cycle += qualified(*s->project, s->name) + " -> ";
-            }
-            return std::unexpected("tasks depend on each other: " + cycle + qualified(*t->project, t->name));
-        }
-        stack.push_back(t);
-        for (const std::string& dep : t->dependsOn) {
-            std::string path = t->project->path;
-            std::string name = dep;
-            if (dep.starts_with(':')) {
-                std::size_t last = dep.rfind(':');
-                path = last == 0 ? ":" : dep.substr(0, last);
-                name = dep.substr(last + 1);
-            }
-            const TaskRef* target = find(path, name);
-            if (target == nullptr) {
-                return std::unexpected(
-                    std::format("{} depends on {}, which does not exist", qualified(*t->project, t->name), dep));
-            }
-            if (auto r = self(self, target); !r) {
-                return r;
-            }
-        }
-        stack.pop_back();
-        done.insert(t);
-        order.push_back(t);
-        return {};
-    };
-    for (const std::string& request : requests) {
-        std::vector<const TaskRef*> roots;
-        if (request.starts_with(':')) {
-            std::size_t last = request.rfind(':');
-            std::string path = last == 0 ? ":" : request.substr(0, last);
-            if (const TaskRef* t = find(path, request.substr(last + 1))) {
-                roots.push_back(t);
-            }
-        } else {
-            for (const ProjectModel& p : ws_.model.projects) {
-                if (current == nullptr || current == &p) {
-                    if (const TaskRef* t = find(p.path, request)) {
-                        roots.push_back(t);
-                    }
-                }
-            }
-        }
-        if (roots.empty()) {
-            return std::unexpected(std::format("no task '{}' here; 'qiln tasks' lists them", request));
-        }
-        for (const TaskRef* t : roots) {
-            if (auto r = visit(visit, t); !r) {
-                return std::unexpected(r.error());
-            }
-        }
-    }
-    int code = 0;
-    for (const TaskRef* t : order) {
-        std::printf("> %s\n", qualified(*t->project, t->name).c_str());
-        std::fflush(stdout);
-        auto r = execute(*t);
-        if (!r) {
-            return std::unexpected(std::format("{} failed: {}", qualified(*t->project, t->name), r.error()));
-        }
-        code = code != 0 ? code : *r;
-    }
-    return code;
-}
-
-std::expected<int, std::string> TaskRunner::execute(const TaskRef& t) {
+std::expected<TaskRunner::Outcome, std::string> TaskRunner::execute(const TaskRef& t) {
     const ProjectModel& p = *t.project;
     if (!t.builtin) {
         if (t.spec == nullptr || t.spec->action.empty()) {
-            return 0;
+            return Outcome{};
         }
-        return pluginTask(t).transform([] { return 0; });
+        return pluginTask(t);
     }
-    auto done = [](std::expected<void, std::string> r) { return r.transform([] { return 0; }); };
+    auto done = [](std::expected<void, std::string> r) { return r.transform([] { return Outcome{}; }); };
     if (t.name == "check") {
-        return done(check(p));
+        return check(p);
     }
     if (t.name == "build") {
-        return done(build(p));
+        return build(p);
     }
     if (t.name == "test") {
-        return done(test(p));
+        return test(p);
     }
     if (t.name == "run") {
-        return runEntry(p);
+        return runEntry(p).transform([](int code) { return Outcome{code, false}; });
     }
     if (t.name == "publish") {
         return done(publish(p));
     }
     return done(clean(p));
+}
+
+// The workspace resolves and loads lazily; doing it before the workers start keeps it on one thread.
+std::expected<void, std::string> TaskRunner::prepare(const std::vector<const TaskRef*>& order) {
+    bool compiles = false;
+    bool plugins = false;
+    for (const TaskRef* t : order) {
+        compiles = compiles || (t->builtin && t->name != "clean");
+        plugins = plugins || (!t->builtin && t->spec != nullptr && !t->spec->action.empty());
+    }
+    bool packages = std::any_of(ws_.model.projects.begin(), ws_.model.projects.end(), [](const ProjectModel& p) {
+        return std::any_of(p.dependencies.begin(), p.dependencies.end(),
+                           [](const DependencySpec& d) { return d.project.empty(); });
+    });
+    if (compiles && packages) {
+        if (auto g = ws_.graph(false); !g) {
+            return std::unexpected(g.error());
+        }
+    }
+    if (plugins) {
+        if (auto l = ws_.plugins(); !l) {
+            return std::unexpected(l.error());
+        }
+    }
+    return {};
+}
+
+std::expected<Hash32, std::string> TaskRunner::fingerprint(const ProjectModel& p, std::string_view task) {
+    auto set = compiler_.sources(p, task != "build");
+    if (!set) {
+        return std::unexpected(set.error());
+    }
+    Hasher h;
+    h.add(QILN_VERSION).add(QILN_QUARTZ_VERSION).add(task).add(Compiler::packageToml(p)).add(kindName(p.kind));
+    h.add(p.hostOnly ? "host-only" : "runner");
+    for (const quartz::RuleSetting& r : compiler_.rulesFor(p)) {
+        h.add(r.rule).add(std::to_string(static_cast<int>(r.level)));
+    }
+    if (task == "test") {
+        h.add(std::format("{} {} {}", p.limits.fuel, p.limits.memoryMiB, p.limits.maxDepth)).add(options_.testFilter);
+    }
+    for (const quartz::SourceInput& in : (*set)->inputs) {
+        h.add(in.name).add(in.text).add(in.dependency ? "dependency" : "own");
+    }
+    for (const RuntimePlugin& r : (*set)->plugins) {
+        h.add(r.name).add(r.checksum);
+    }
+    if (p.kind == ArtifactKind::BuildPlugin) {
+        auto api = compiler_.apiSources(p);
+        if (!api) {
+            return std::unexpected(api.error());
+        }
+        for (const quartz::SourceInput& in : *api) {
+            h.add(in.name).add(in.text);
+        }
+    }
+    return h.finish();
+}
+
+bool TaskRunner::upToDate(const ProjectModel& p, std::string_view task, const std::pair<std::string, Hash32>& inputs) {
+    if (options_.rerun) {
+        return false;
+    }
+    fs::path dir = ws_.projectDir(p);
+    auto bytes = readLimited(stampPath(dir, task), kMaxStamp);
+    auto stamp = bytes && *bytes ? decodeStamp(**bytes) : std::nullopt;
+    if (!stamp || stamp->inputs.empty() || stamp->inputs.front() != inputs) {
+        return false;
+    }
+    for (std::size_t i = 1; i < stamp->inputs.size(); ++i) {
+        if (recorded(dir, stamp->inputs[i].first) != stamp->inputs[i].second) {
+            return false;
+        }
+    }
+    for (const auto& [path, hash] : stamp->outputs) {
+        if (!safeRelativePath(path)) {
+            return false;
+        }
+        auto out = readLimited(dir / "build" / path, kMaxRecorded);
+        if (!out || !*out || blake2b256(**out) != hash) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void TaskRunner::saveStamp(const ProjectModel& p, std::string_view task, const Stamp& stamp) {
+    if (auto w = writeAtomically(stampPath(ws_.projectDir(p), task), encodeStamp(stamp)); !w) {
+        complain(std::format("warning: {}\n", w.error()));
+    }
 }
 
 } // namespace qiln

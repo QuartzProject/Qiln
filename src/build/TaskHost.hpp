@@ -1,12 +1,14 @@
 #pragma once
 
 #include "model/Model.hpp"
+#include "support/Hash.hpp"
 
 #include <quartz/Quartz.hpp>
 
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,7 +22,14 @@ struct TaskEnvironment {
     std::filesystem::path buildDir;
     std::string artifact;             // relative to the build directory, empty before `build` ran
     std::vector<std::string> sources; // main sources, relative to the project directory
+    // What the task read (`project:`, `build:` or `exists:` and a path) and wrote, for its up-to-date check.
+    std::vector<std::pair<std::string, Hash32>> read;
+    std::vector<std::pair<std::string, Hash32>> written;
 };
+
+/// The hash a read records: the bytes of a file, or that it was absent.
+Hash32 contentHash(const std::optional<std::vector<std::uint8_t>>& bytes);
+Hash32 existenceHash(bool exists);
 
 /// The budget of a plugin task: larger than a build script's, since tasks compress and read files.
 inline constexpr std::int64_t kTaskFuel = 2'000'000'000;

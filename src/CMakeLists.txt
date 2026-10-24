@@ -17,7 +17,8 @@ add_library(qiln_lib STATIC ${QILN_API_HEADER}
     script/Script.cpp script/SettingsHost.cpp script/ProjectHost.cpp
     repo/Publish.cpp
     workspace/Workspace.cpp workspace/Graphs.cpp workspace/Plugins.cpp workspace/ConfigCache.cpp
-    build/Compile.cpp build/Runner.cpp build/TaskHost.cpp build/Tasks.cpp build/Builtins.cpp
+    build/Console.cpp build/Compile.cpp build/Runner.cpp build/TaskHost.cpp build/Stamp.cpp build/Tasks.cpp
+    build/Schedule.cpp build/Builtins.cpp
     cli/Init.cpp cli/Info.cpp)
 target_include_directories(qiln_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(qiln_lib PUBLIC qiln_options qiln_quartz)

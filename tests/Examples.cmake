@@ -23,6 +23,16 @@ file(WRITE "$ENV{QILN_HOME}/signing.key" "07070707070707070707070707070707070707
 qiln(shop test)
 expect("ok      showsCents")
 expect("ok      greetsByName")
+qiln(shop test)
+expect("> :core:test UP-TO-DATE")
+
+# Tasks finish in any order on several workers but print in the planned one.
+qiln(shop check build --rerun -j 1)
+set(serial "${out}")
+qiln(shop check build --rerun -j 8)
+if(NOT out STREQUAL serial)
+    message(FATAL_ERROR "the output of -j 8 differs from -j 1:\n${out}\n---\n${serial}")
+endif()
 qiln(shop :app:run)
 expect("Today's special costs 4.99 EUR")
 qiln(shop bundle)
