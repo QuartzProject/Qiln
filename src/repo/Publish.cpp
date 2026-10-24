@@ -12,6 +12,7 @@ namespace qiln {
 namespace {
 
 constexpr std::size_t kMaxMetadata = 1u << 20;
+constexpr std::size_t kMaxMeta = 64u << 10;
 
 std::string xmlEscape(std::string_view text) {
     std::string out;
@@ -52,18 +53,15 @@ std::string pom(const Meta& m, std::string_view description) {
 }
 
 // A file plus the `.sha256` and `.sha512` Maven tools look for beside it.
-std::expected<void, std::string> writeWithSums(const fs::path& path, std::span<const std::uint8_t> bytes) {
-    if (auto w = writeAtomically(path, bytes); !w) {
+std::expected<void, std::string> storeWithSums(const Location& repo, const std::string& path,
+                                               std::span<const std::uint8_t> bytes, bool fresh) {
+    if (auto w = store(repo, path, bytes, fresh); !w) {
         return w;
     }
-    fs::path sha256 = path;
-    sha256 += ".sha256";
-    fs::path sha512 = path;
-    sha512 += ".sha512";
-    if (auto w = writeAtomically(sha256, sha256Hex(bytes)); !w) {
+    if (auto w = store(repo, path + ".sha256", bytesOf(sha256Hex(bytes)), fresh); !w) {
         return w;
     }
-    return writeAtomically(sha512, sha512Hex(bytes));
+    return store(repo, path + ".sha512", bytesOf(sha512Hex(bytes)), fresh);
 }
 
 } // namespace
@@ -74,49 +72,47 @@ std::string mavenTimestamp() {
 }
 
 std::expected<std::string, std::string> publish(const Location& repo, Publication& pub, const Seed& seed) {
-    if (repo.remote()) {
-        return std::unexpected(std::format("publishing over https is not supported yet; publish to a directory and "
-                                           "upload it to {}",
-                                           repo.url));
-    }
     Meta& m = pub.meta;
     std::string version = quartz::formatVersion(m.version);
-    fs::path metadataFile = repo.local / metadataPath(m.name);
+    std::string metadataFile = metadataPath(m.name);
     std::vector<quartz::Version> versions;
-    if (auto bytes = readLimited(metadataFile, kMaxMetadata); bytes && *bytes) {
-        auto parsed = parseMetadata(textOf(**bytes), m.name);
+    auto listing = download(repo, metadataFile, kMaxMetadata);
+    if (!listing) {
+        return std::unexpected(listing.error());
+    }
+    if (*listing) {
+        auto parsed = parseMetadata(textOf(**listing), m.name);
         if (!parsed) {
             return std::unexpected(parsed.error());
         }
         versions = std::move(*parsed);
-    } else if (!bytes) {
-        return std::unexpected(bytes.error());
     }
-    fs::path prefix = repo.local / versionPrefix(m.name, m.version);
-    fs::path metaFile = prefix;
-    metaFile += ".qzmeta";
-    std::error_code ec;
-    if (std::find(versions.begin(), versions.end(), m.version) != versions.end() || fs::exists(metaFile, ec)) {
+    std::string prefix = versionPrefix(m.name, m.version);
+    auto described = download(repo, prefix + ".qzmeta", kMaxMeta);
+    if (!described) {
+        return std::unexpected(described.error());
+    }
+    if (std::find(versions.begin(), versions.end(), m.version) != versions.end() || *described) {
         return std::unexpected(
             std::format("{} {} is already published; versions never change, publish a new one", m.name, version));
     }
     m.checksum = blake2b256(pub.artifact);
     signMeta(m, seed);
-    fs::path artifactFile = prefix;
-    artifactFile += archiveExtension(m.kind);
-    fs::path pomFile = prefix;
-    pomFile += ".pom";
     std::string metaText = printMeta(m);
     std::string pomText = pom(m, pub.description);
-    for (auto [path, bytes] : {std::pair{&artifactFile, std::span<const std::uint8_t>(pub.artifact)},
-                               std::pair{&metaFile, bytesOf(metaText)}, std::pair{&pomFile, bytesOf(pomText)}}) {
-        if (auto w = writeWithSums(*path, bytes); !w) {
+    std::pair<std::string, std::span<const std::uint8_t>> files[] = {
+        {prefix + std::string(archiveExtension(m.kind)), pub.artifact},
+        {prefix + ".qzmeta", bytesOf(metaText)},
+        {prefix + ".pom", bytesOf(pomText)},
+    };
+    for (const auto& [path, bytes] : files) {
+        if (auto w = storeWithSums(repo, path, bytes, true); !w) {
             return std::unexpected(w.error());
         }
     }
     versions.push_back(m.version);
-    std::string listing = printMetadata(m.name, versions, mavenTimestamp());
-    if (auto w = writeWithSums(metadataFile, bytesOf(listing)); !w) {
+    std::string text = printMetadata(m.name, versions, mavenTimestamp());
+    if (auto w = storeWithSums(repo, metadataFile, bytesOf(text), false); !w) {
         return std::unexpected(w.error());
     }
     return std::format("published {} {} ({}, {} bytes, blake2b {}) to {}", m.name, version, kindName(m.kind),

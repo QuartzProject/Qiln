@@ -26,6 +26,7 @@ struct Options {
     bool locked = false;   // fail instead of changing qiln.lock
     bool allowKeyChange = false;
     bool quiet = false;
+    bool allowInsecureLocalhost = false; // plain http to the loopback address, for test repositories
 };
 
 /// A build plugin ready to use: the API compiled into build scripts and the task sources for its own sandbox.

@@ -136,14 +136,25 @@ std::expected<void, std::string> TaskRunner::publish(const ProjectModel& p) {
     fs::path base = fs::current_path();
     if (target.empty()) {
         if (p.publishRepositories.empty()) {
-            return std::unexpected("nowhere to publish: add p.publishTo(Repository.local(\"...\")) or pass --to <dir>");
+            return std::unexpected("nowhere to publish: add p.publishTo(...) or pass --to <directory or URL>");
         }
         target = p.publishRepositories.front().url;
         base = ws_.projectDir(p);
     }
-    auto repo = locate(target, base);
+    auto repo = locate(target, base, ws_.options.allowInsecureLocalhost);
     if (!repo) {
         return std::unexpected(repo.error());
+    }
+    if (repo->remote()) {
+        // The environment names no repository, so it only ever reaches the one this command publishes to.
+        auto credentials = publishCredentialsFromEnvironment();
+        if (credentials && !*credentials) {
+            credentials = credentialsFor(repo->url);
+        }
+        if (!credentials) {
+            return std::unexpected(credentials.error());
+        }
+        repo->credentials = std::move(*credentials);
     }
     repo->display = repo->remote() ? repo->url : ws_.displayPath(repo->local);
     auto seed = signingSeed(options_.signingKey);

@@ -10,7 +10,8 @@ add_custom_command(OUTPUT ${QILN_API_HEADER}
 
 add_library(qiln_lib STATIC ${QILN_API_HEADER}
     support/Toml.cpp support/Files.cpp support/Hash.cpp
-    repo/Artifact.cpp repo/Transport.cpp repo/Metadata.cpp repo/Meta.cpp repo/Archive.cpp repo/Repositories.cpp
+    repo/Artifact.cpp repo/Transport.cpp repo/Credentials.cpp repo/Metadata.cpp repo/Meta.cpp repo/Archive.cpp
+    repo/Repositories.cpp
     resolve/Lockfile.cpp resolve/Resolver.cpp
     model/Model.cpp
     script/Script.cpp script/SettingsHost.cpp script/ProjectHost.cpp

@@ -11,6 +11,14 @@ add_test(NAME qiln.examples COMMAND ${CMAKE_COMMAND} -DQILN=$<TARGET_FILE:qiln>
 set_tests_properties(qiln.unit qiln.examples PROPERTIES LABELS qiln
     ENVIRONMENT "QILN_HOME=${CMAKE_CURRENT_BINARY_DIR}/home")
 
+# Publishing over HTTP PUT to a repository the script serves on 127.0.0.1, then resolving from it.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME qiln.publish-http COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/http/publish.py
+        $<TARGET_FILE:qiln> ${PROJECT_SOURCE_DIR}/examples ${CMAKE_CURRENT_BINARY_DIR}/http)
+    set_tests_properties(qiln.publish-http PROPERTIES LABELS qiln)
+endif()
+
 # Every reader of files Qiln did not write itself: `.qzmeta`, qiln.lock, maven-metadata.xml, `.qzs`, the cache.
 if(QILN_FUZZ)
     add_executable(qiln-fuzz-readers fuzz/FuzzReaders.cpp)

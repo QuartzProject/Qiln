@@ -1,4 +1,5 @@
 #include "repo/Archive.hpp"
+#include "repo/Credentials.hpp"
 #include "repo/Meta.hpp"
 #include "repo/Metadata.hpp"
 #include "resolve/Lockfile.hpp"
@@ -16,7 +17,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     }
     std::span<const std::uint8_t> bytes(data + 1, size - 1);
     std::string_view text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-    switch (data[0] % 5) {
+    switch (data[0] % 6) {
     case 0:
         (void)qiln::parseMeta(text, "org.example.text", {1, 2, 0});
         break;
@@ -28,6 +29,9 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         break;
     case 3:
         (void)qiln::unpackSources(bytes);
+        break;
+    case 4:
+        (void)qiln::parseCredentials(text);
         break;
     default:
         (void)qiln::decodeConfiguration(bytes);

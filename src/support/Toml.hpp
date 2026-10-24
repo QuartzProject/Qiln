@@ -31,7 +31,9 @@ struct Section {
 };
 
 /// The TOML subset of Qiln files (`.qzmeta`, `qiln.lock`): one value per line, no escapes, no inline tables.
-std::expected<std::vector<Section>, std::string> parse(std::string_view text, std::string_view file);
+/// `literalStrings` also accepts `'...'`, whose text may hold quotes and backslashes (for passwords).
+std::expected<std::vector<Section>, std::string> parse(std::string_view text, std::string_view file,
+                                                       bool literalStrings = false);
 
 /// True when `s` can be written as a TOML basic string without escapes.
 bool plainString(std::string_view s);

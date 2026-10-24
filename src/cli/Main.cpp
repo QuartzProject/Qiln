@@ -9,17 +9,19 @@ namespace {
 using qiln::cli::Args;
 
 int usage(int code) {
-    std::fprintf(code == 0 ? stdout : stderr,
-                 "usage: qiln <task>... [options]          run tasks: check, test, build, run, publish, clean, or a\n"
-                 "                                         plugin's; ':core:test' names the project\n"
-                 "       qiln init [dir] [--kind application|library|plugin|build-plugin] [--group org.example]\n"
-                 "       qiln tasks | deps [--update]\n"
-                 "       qiln keygen [file]                a signing key (default ~/.qiln/signing.key)\n"
-                 "       qiln version | help\n"
-                 "options: -p <dir>  the project directory (default .)\n"
-                 "         -P key=value  a property build scripts read with p.property(\"key\")\n"
-                 "         --filter <text> (test)  --to <dir> (publish)  --sign <seed file> (publish)\n"
-                 "         --deny-warnings  --update  --locked  --allow-key-change  --no-cache  -q\n");
+    std::fprintf(
+        code == 0 ? stdout : stderr,
+        "usage: qiln <task>... [options]          run tasks: check, test, build, run, publish, clean, or a\n"
+        "                                         plugin's; ':core:test' names the project\n"
+        "       qiln init [dir] [--kind application|library|plugin|build-plugin] [--group org.example]\n"
+        "       qiln tasks | deps [--update]\n"
+        "       qiln keygen [file]                a signing key (default ~/.qiln/signing.key)\n"
+        "       qiln version | help\n"
+        "options: -p <dir>  the project directory (default .)\n"
+        "         -P key=value  a property build scripts read with p.property(\"key\")\n"
+        "         --filter <text> (test)  --to <dir or URL> (publish)  --sign <seed file> (publish)\n"
+        "         --deny-warnings  --update  --locked  --allow-key-change  --no-cache  -q\n"
+        "         --allow-insecure-localhost  plain http:// to 127.0.0.1, [::1] or localhost (test servers)\n");
     return code;
 }
 
@@ -56,6 +58,8 @@ std::optional<Args> parse(int argc, char** argv) {
             a.options.locked = true;
         } else if (arg == "--allow-key-change") {
             a.options.allowKeyChange = true;
+        } else if (arg == "--allow-insecure-localhost") {
+            a.options.allowInsecureLocalhost = true;
         } else if (arg == "--no-cache") {
             a.options.noCache = true;
         } else if (arg == "-q" || arg == "--quiet") {

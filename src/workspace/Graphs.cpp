@@ -63,9 +63,16 @@ std::expected<Repositories*, std::string> Workspace::repositories(bool pluginGra
     std::vector<Location> locations;
     std::set<std::string> seen;
     auto add = [&](const RepositorySpec& r, const fs::path& base) -> std::expected<void, std::string> {
-        auto loc = locate(r.url, base);
+        auto loc = locate(r.url, base, options.allowInsecureLocalhost);
         if (!loc) {
             return std::unexpected(loc.error());
+        }
+        if (loc->remote()) {
+            auto credentials = credentialsFor(loc->url);
+            if (!credentials) {
+                return std::unexpected(credentials.error());
+            }
+            loc->credentials = std::move(*credentials);
         }
         std::string id = loc->remote() ? loc->url : fs::weakly_canonical(loc->local).string();
         if (seen.insert(id).second) {

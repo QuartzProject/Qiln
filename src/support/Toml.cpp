@@ -27,7 +27,7 @@ bool bareKeyChar(char c) {
 
 class LineReader {
 public:
-    explicit LineReader(std::string_view s) : s_(s) {}
+    LineReader(std::string_view s, bool literal) : s_(s), literal_(literal) {}
 
     [[nodiscard]] bool atEnd() {
         skipSpace();
@@ -50,6 +50,20 @@ public:
     }
 
     std::expected<std::string, std::string> string() {
+        if (literal_ && eat('\'')) {
+            std::size_t end = s_.find('\'', pos_);
+            if (end == std::string_view::npos) {
+                return std::unexpected("unterminated string");
+            }
+            std::string_view body = s_.substr(pos_, end - pos_);
+            for (char c : body) {
+                if (static_cast<unsigned char>(c) < 0x20 || c == 0x7F) {
+                    return std::unexpected("strings may not hold control characters");
+                }
+            }
+            pos_ = end + 1;
+            return std::string(body);
+        }
         if (!eat('"')) {
             return std::unexpected("expected a quoted string");
         }
@@ -86,7 +100,7 @@ public:
             return std::unexpected("expected a value");
         }
         char c = s_[pos_];
-        if (c == '"') {
+        if (c == '"' || (literal_ && c == '\'')) {
             auto s = string();
             if (!s) {
                 return std::unexpected(s.error());
@@ -133,6 +147,7 @@ public:
 
 private:
     std::string_view s_;
+    bool literal_ = false;
     std::size_t pos_ = 0;
 };
 
@@ -165,7 +180,8 @@ std::string quoteList(const std::vector<std::string>& items) {
     return out;
 }
 
-std::expected<std::vector<Section>, std::string> parse(std::string_view text, std::string_view file) {
+std::expected<std::vector<Section>, std::string> parse(std::string_view text, std::string_view file,
+                                                       bool literalStrings) {
     std::vector<Section> out(1);
     std::size_t lineNo = 0;
     while (!text.empty()) {
@@ -176,7 +192,7 @@ std::expected<std::vector<Section>, std::string> parse(std::string_view text, st
         auto fail = [&](std::string_view what) {
             return std::unexpected(std::format("{}:{}: {}", file, lineNo, what));
         };
-        LineReader r(line);
+        LineReader r(line, literalStrings);
         if (r.atEnd()) {
             continue;
         }

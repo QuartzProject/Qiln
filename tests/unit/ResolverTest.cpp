@@ -43,7 +43,9 @@ struct Fixture {
         pub.meta.archive = std::format("{}-{}.qzs", coordinatesOf(name)->artifact, quartz::formatVersion(v));
         std::string body = std::format("{} {}", name, quartz::formatVersion(v));
         pub.artifact.assign(body.begin(), body.end());
-        Location loc{"", dir, "fixture"};
+        Location loc;
+        loc.local = dir;
+        loc.display = "fixture";
         REQUIRE(publish(loc, pub, key));
     }
 };
@@ -61,7 +63,9 @@ std::string versions(const LockGraph& g) {
 
 TEST_CASE("the resolver picks the highest version every range accepts, from a Maven layout repository") {
     Fixture f;
-    Repositories repos({Location{"", f.dir, "fixture"}});
+    Location loc;
+    loc.local = f.dir;
+    Repositories repos({loc});
     PackageSource source{[&](const std::string& n) { return repos.versions(n); },
                          [&](const std::string& n, const quartz::Version& v) { return repos.meta(n, v); }};
 
