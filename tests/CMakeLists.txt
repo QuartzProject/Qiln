@@ -1,4 +1,4 @@
-add_executable(qiln-tests unit/Main.cpp unit/ResolverTest.cpp unit/LockfileTest.cpp)
+add_executable(qiln-tests unit/Main.cpp unit/ResolverTest.cpp unit/LockfileTest.cpp unit/EditTest.cpp)
 target_include_directories(qiln-tests SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party)
 target_link_libraries(qiln-tests PRIVATE qiln_lib)
 target_compile_definitions(qiln-tests PRIVATE QILN_TEST_WORK="${CMAKE_CURRENT_BINARY_DIR}/work")

@@ -16,6 +16,7 @@ int usage(int code) {
         "                                         plugin's; ':core:test' names the project\n"
         "       qiln init [dir] [--kind application|library|plugin|build-plugin] [--group org.example]\n"
         "       qiln tasks | deps [--update]\n"
+        "       qiln add <package>[@range] | <:project> [--test]   qiln remove <package> | <:project>\n"
         "       qiln keygen [file]                a signing key (default ~/.qiln/signing.key)\n"
         "       qiln version | help\n"
         "options: -p <dir>  the project directory (default .)\n"
@@ -69,6 +70,8 @@ std::optional<Args> parse(int argc, char** argv) {
                 return std::nullopt;
             }
             a.run.jobs = jobs;
+        } else if (arg == "--test") {
+            a.testDependency = true;
         } else if (arg == "--rerun") {
             a.run.rerun = true;
         } else if (arg == "--allow-insecure-localhost") {
@@ -109,6 +112,12 @@ int main(int argc, char** argv) {
     }
     if (a.command == "keygen") {
         return qiln::cli::keygen(a);
+    }
+    if (a.command == "add") {
+        return qiln::cli::add(a);
+    }
+    if (a.command == "remove") {
+        return qiln::cli::remove(a);
     }
     auto ws = qiln::loadWorkspace(a.dir, a.options);
     if (!ws) {

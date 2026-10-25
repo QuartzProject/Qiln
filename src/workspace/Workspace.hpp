@@ -57,6 +57,10 @@ public:
     std::expected<const LockGraph*, std::string> graph(bool pluginGraph);
     /// The verified archive of a package locked in that graph.
     std::expected<std::vector<std::uint8_t>, std::string> archive(const Locked& p, bool pluginGraph);
+    /// The repositories of the project graph (every project's) or of the plugin graph.
+    std::expected<Repositories*, std::string> repositories(bool pluginGraph);
+    /// Runs the `build.qz` text of the project in `dir` (relative to the root) against the requested plugins.
+    std::expected<ProjectModel, std::string> evaluateScript(const std::string& dir, const std::string& text);
 
     Workspace();
     ~Workspace();
@@ -73,7 +77,6 @@ private:
     std::vector<Requirement> requirements(bool pluginGraph) const;
     std::expected<void, std::string> evaluateLocalPlugins();
     std::expected<Lockfile*, std::string> loadLock();
-    std::expected<Repositories*, std::string> repositories(bool pluginGraph);
 };
 
 /// Finds the root above `start` (the nearest `settings.qz`, else the nearest `build.qz`) and configures it.

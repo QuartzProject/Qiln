@@ -14,12 +14,12 @@ add_library(qiln_lib STATIC ${QILN_API_HEADER}
     repo/Repositories.cpp
     resolve/Lockfile.cpp resolve/Resolver.cpp
     model/Model.cpp
-    script/Script.cpp script/SettingsHost.cpp script/ProjectHost.cpp
+    script/Script.cpp script/SettingsHost.cpp script/ProjectHost.cpp script/Edit.cpp
     repo/Publish.cpp
     workspace/Workspace.cpp workspace/Graphs.cpp workspace/Plugins.cpp workspace/ConfigCache.cpp
     build/Console.cpp build/Compile.cpp build/Runner.cpp build/TaskHost.cpp build/Stamp.cpp build/Tasks.cpp
     build/Schedule.cpp build/Builtins.cpp
-    cli/Init.cpp cli/Info.cpp)
+    cli/Init.cpp cli/Info.cpp cli/Add.cpp)
 target_include_directories(qiln_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(qiln_lib PUBLIC qiln_options qiln_quartz)
 target_compile_definitions(qiln_lib PUBLIC QILN_VERSION="${PROJECT_VERSION}"

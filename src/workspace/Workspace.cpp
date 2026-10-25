@@ -184,17 +184,6 @@ std::expected<void, std::string> evaluate(Workspace& ws) {
             return std::unexpected(e.error());
         }
     }
-    auto plugins =
-        m.plugins.empty() ? std::expected<const std::vector<LoadedPlugin>*, std::string>(nullptr) : ws.plugins();
-    if (!plugins) {
-        return std::unexpected(plugins.error());
-    }
-    std::vector<quartz::SourceInput> apis;
-    std::vector<std::string> requested;
-    for (const LoadedPlugin& p : *plugins ? **plugins : std::vector<LoadedPlugin>{}) {
-        apis.insert(apis.end(), p.api.begin(), p.api.end());
-        requested.push_back(p.name);
-    }
     std::vector<std::string> dirs;
     std::error_code ec;
     if (fs::is_regular_file(ws.root / "build.qz", ec)) {
@@ -207,14 +196,11 @@ std::expected<void, std::string> evaluate(Workspace& ws) {
         if (!text) {
             return std::unexpected(std::format("settings.qz includes '{}' but {} does not exist", dir, file));
         }
-        ProjectModel p;
-        p.dir = dir;
-        p.path = projectPath(dir);
-        p.name = dir.empty() ? m.name : defaultProjectName(dir);
-        if (auto e = evaluateBuild({file, *text}, p, apis, requested, ws.options.properties); !e) {
-            return std::unexpected(e.error());
+        auto p = ws.evaluateScript(dir, *text);
+        if (!p) {
+            return std::unexpected(p.error());
         }
-        m.projects.push_back(std::move(p));
+        m.projects.push_back(std::move(*p));
     }
     return checkProjects(m);
 }
@@ -241,6 +227,30 @@ std::expected<std::unique_ptr<Workspace>, std::string> loadWorkspace(const fs::p
         std::fprintf(stderr, "warning: %s\n", w.error().c_str());
     }
     return ws;
+}
+
+std::expected<ProjectModel, std::string> Workspace::evaluateScript(const std::string& dir, const std::string& text) {
+    std::vector<quartz::SourceInput> apis;
+    std::vector<std::string> requested;
+    if (!model.plugins.empty()) {
+        auto loaded = plugins();
+        if (!loaded) {
+            return std::unexpected(loaded.error());
+        }
+        for (const LoadedPlugin& p : **loaded) {
+            apis.insert(apis.end(), p.api.begin(), p.api.end());
+            requested.push_back(p.name);
+        }
+    }
+    ProjectModel p;
+    p.dir = dir;
+    p.path = projectPath(dir);
+    p.name = dir.empty() ? model.name : defaultProjectName(dir);
+    std::string file = dir.empty() ? "build.qz" : dir + "/build.qz";
+    if (auto e = evaluateBuild({file, text}, p, apis, requested, options.properties); !e) {
+        return std::unexpected(e.error());
+    }
+    return p;
 }
 
 const ProjectModel* currentProject(const Workspace& ws, const fs::path& dir) {
