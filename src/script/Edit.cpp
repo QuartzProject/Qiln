@@ -219,8 +219,7 @@ std::string insert(const Script& s, const std::string& element) {
             return splice(text, last.span.end, last.span.end, add);
         }
         std::size_t at = lineStart(text, t[close].span.begin);
-        std::string indent = empty ? std::string(indentOf(text, t[close].span.begin)) + "    "
-                                   : std::string(indentOf(text, t[s.elements.back().first].span.begin));
+        std::string indent = std::string(indentOf(text, t[close].span.begin)) + "    ";
         for (const Element& e : s.elements) {
             if (e.list == open) {
                 indent = std::string(indentOf(text, t[e.first].span.begin));
