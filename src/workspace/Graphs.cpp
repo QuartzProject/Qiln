@@ -27,7 +27,11 @@ std::vector<Requirement> Workspace::requirements(bool pluginGraph) const {
                 out.push_back({r.name, r.range, "settings.qz"});
             }
         }
-        out.insert(out.end(), localPluginRequirements_.begin(), localPluginRequirements_.end());
+        for (const ProjectModel& p : model.localPlugins) {
+            for (const DependencySpec& d : p.dependencies) {
+                out.push_back({d.name, d.range, std::format("plugin {}", p.packageName())});
+            }
+        }
         return out;
     }
     for (const ProjectModel& p : model.projects) {
@@ -87,7 +91,7 @@ std::expected<Repositories*, std::string> Workspace::repositories(bool pluginGra
                 return std::unexpected("settings.qz: " + a.error());
             }
         }
-        for (const ProjectModel& p : localPlugins_) {
+        for (const ProjectModel& p : model.localPlugins) {
             for (const RepositorySpec& r : p.repositories) {
                 if (auto a = add(r, root / p.dir); !a) {
                     return std::unexpected(std::format("{}/build.qz: {}", p.dir, a.error()));

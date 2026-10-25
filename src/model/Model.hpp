@@ -87,6 +87,7 @@ struct WorkspaceModel {
     std::vector<RepositorySpec> pluginRepositories;
     std::vector<PluginRequest> plugins;
     std::vector<ProjectModel> projects;
+    std::vector<ProjectModel> localPlugins; // the evaluated build.qz of each plugin included from its sources
 
     [[nodiscard]] const ProjectModel* findProject(std::string_view path) const;
 };

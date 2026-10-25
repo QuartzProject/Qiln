@@ -11,7 +11,7 @@ namespace {
 namespace bin = quartz::ir::bin;
 
 constexpr std::string_view kMagic = "QLNC";
-constexpr std::uint64_t kVersion = 2;
+constexpr std::uint64_t kVersion = 3;
 constexpr std::uint64_t kMaxItems = 1u << 16;
 
 class Out {
@@ -202,9 +202,11 @@ std::vector<std::uint8_t> encodeConfiguration(const Fingerprint& inputs, const W
         o.s(r.range);
         o.s(r.dir);
     }
-    o.n(model.projects.size());
-    for (const ProjectModel& p : model.projects) {
-        writeProject(o, p);
+    for (const auto* projects : {&model.projects, &model.localPlugins}) {
+        o.n(projects->size());
+        for (const ProjectModel& p : *projects) {
+            writeProject(o, p);
+        }
     }
     std::vector<std::uint8_t> out(kMagic.begin(), kMagic.end());
     out.insert(out.end(), o.w.out.begin(), o.w.out.end());
@@ -246,8 +248,10 @@ std::optional<std::pair<Fingerprint, WorkspaceModel>> decodeConfiguration(std::s
         r.dir = in.s();
         m.plugins.push_back(std::move(r));
     }
-    for (std::uint64_t i = 0, c = in.count(); i < c && !in.failed(); ++i) {
-        m.projects.push_back(readProject(in));
+    for (auto* projects : {&m.projects, &m.localPlugins}) {
+        for (std::uint64_t i = 0, c = in.count(); i < c && !in.failed(); ++i) {
+            projects->push_back(readProject(in));
+        }
     }
     if (in.failed() || !in.r.atEnd()) {
         return std::nullopt;

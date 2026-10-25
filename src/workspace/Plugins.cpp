@@ -81,8 +81,8 @@ std::string defaultName(std::string_view dir) {
 std::string defaultProjectName(std::string_view dir) { return defaultName(dir); }
 
 std::expected<void, std::string> Workspace::evaluateLocalPlugins() {
-    if (!localPlugins_.empty() || std::none_of(model.plugins.begin(), model.plugins.end(),
-                                               [](const PluginRequest& r) { return !r.dir.empty(); })) {
+    if (!model.localPlugins.empty() || std::none_of(model.plugins.begin(), model.plugins.end(),
+                                                    [](const PluginRequest& r) { return !r.dir.empty(); })) {
         return {};
     }
     for (PluginRequest& r : model.plugins) {
@@ -117,9 +117,8 @@ std::expected<void, std::string> Workspace::evaluateLocalPlugins() {
             if (!d.project.empty()) {
                 return std::unexpected(std::format("{}/build.qz: a build plugin cannot depend on a project", r.dir));
             }
-            localPluginRequirements_.push_back({d.name, d.range, std::format("plugin {}", r.name)});
         }
-        localPlugins_.push_back(std::move(pm));
+        model.localPlugins.push_back(std::move(pm));
     }
     std::set<std::string> names;
     for (const PluginRequest& r : model.plugins) {
@@ -151,7 +150,7 @@ std::expected<const std::vector<LoadedPlugin>*, std::string> Workspace::plugins(
         lp.name = r.name;
         std::vector<Dependency> deps;
         if (!r.dir.empty()) {
-            auto pm = std::find_if(localPlugins_.begin(), localPlugins_.end(),
+            auto pm = std::find_if(model.localPlugins.begin(), model.localPlugins.end(),
                                    [&](const ProjectModel& p) { return p.dir == r.dir; });
             lp.version = pm->version;
             lp.origin = r.dir;

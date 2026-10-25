@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <cstdio>
 #include <format>
+#include <functional>
 #include <thread>
 
 namespace qiln {
@@ -177,16 +178,24 @@ std::expected<int, std::string> TaskRunner::run(const std::vector<std::string>& 
             logs[printed].replay();
         }
     };
-    auto work = [&] {
+    // Workers start only when a ready task finds none idle, so a run of up-to-date tasks stays on this thread.
+    std::vector<std::jthread> workers;
+    std::size_t idle = 0;
+    std::function<void()> work = [&] {
         std::unique_lock lock(mutex);
         while (true) {
+            ++idle;
             wake.wait(lock, [&] { return !ready.empty() || running == 0; });
+            --idle;
             if (ready.empty()) {
                 return;
             }
             std::size_t i = *ready.begin();
             ready.erase(ready.begin());
             ++running;
+            if (!ready.empty() && idle == 0 && workers.size() + 1 < jobs) {
+                workers.emplace_back([&] { work(); });
+            }
             bool streamed = plan.order[i]->builtin && plan.order[i]->name == "run";
             if (streamed) {
                 flush();
@@ -215,13 +224,8 @@ std::expected<int, std::string> TaskRunner::run(const std::vector<std::string>& 
             wake.notify_all();
         }
     };
-    {
-        std::vector<std::jthread> workers;
-        for (std::size_t w = 1; w < jobs; ++w) {
-            workers.emplace_back(work);
-        }
-        work();
-    }
+    work();
+    workers.clear();
     std::string errors;
     int code = 0;
     for (std::size_t i = 0; i < n; ++i) {

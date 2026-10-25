@@ -72,8 +72,6 @@ private:
     std::optional<Lockfile> lock_;
     bool checked_[2] = {false, false};
     std::unique_ptr<Repositories> repositories_[2];
-    std::vector<Requirement> localPluginRequirements_; // libraries the build plugins of the workspace need
-    std::vector<ProjectModel> localPlugins_;
     std::vector<Requirement> requirements(bool pluginGraph) const;
     std::expected<void, std::string> evaluateLocalPlugins();
     std::expected<Lockfile*, std::string> loadLock();
