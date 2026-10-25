@@ -215,8 +215,14 @@ std::expected<std::unique_ptr<Workspace>, std::string> loadWorkspace(const fs::p
         return std::unexpected(root.error());
     }
     ws->root = *root;
+    std::error_code ec;
     if (!options.noCache && cacheCurrent(*ws)) {
         ws->fromCache = true;
+        if (!fs::exists(ws->root / ".qiln/api/qiln.qzi", ec)) {
+            if (auto w = writeEditorApi(*ws); !w && !options.quiet) {
+                std::fprintf(stderr, "warning: %s\n", w.error().c_str());
+            }
+        }
         return ws;
     }
     if (auto e = evaluate(*ws); !e) {
@@ -224,6 +230,9 @@ std::expected<std::unique_ptr<Workspace>, std::string> loadWorkspace(const fs::p
     }
     std::vector<std::uint8_t> bytes = encodeConfiguration(fingerprintOf(*ws), ws->model);
     if (auto w = writeAtomically(ws->root / kCacheFile, bytes); !w && !options.quiet) {
+        std::fprintf(stderr, "warning: %s\n", w.error().c_str());
+    }
+    if (auto w = writeEditorApi(*ws); !w && !options.quiet) {
         std::fprintf(stderr, "warning: %s\n", w.error().c_str());
     }
     return ws;

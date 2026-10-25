@@ -82,6 +82,10 @@ private:
 /// Finds the root above `start` (the nearest `settings.qz`, else the nearest `build.qz`) and configures it.
 std::expected<std::unique_ptr<Workspace>, std::string> loadWorkspace(const fs::path& start, const Options& options);
 
+/// `.qiln/api/` at the root: the build interface, its prelude, the task interface and the requested plugins' `api/`
+/// sources, for an editor to resolve `build.qz` and `settings.qz`.
+std::expected<void, std::string> writeEditorApi(Workspace& ws);
+
 /// A valid project name made from the last segment of `dir` (`text-utils` becomes `text_utils`).
 std::string defaultProjectName(std::string_view dir);
 

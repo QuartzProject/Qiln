@@ -17,6 +17,7 @@ add_library(qiln_lib STATIC ${QILN_API_HEADER}
     script/Script.cpp script/SettingsHost.cpp script/ProjectHost.cpp script/Edit.cpp
     repo/Publish.cpp
     workspace/Workspace.cpp workspace/Graphs.cpp workspace/Plugins.cpp workspace/ConfigCache.cpp
+    workspace/EditorApi.cpp
     build/Console.cpp build/Compile.cpp build/Runner.cpp build/TaskHost.cpp build/Stamp.cpp build/Tasks.cpp
     build/Schedule.cpp build/Builtins.cpp
     cli/Init.cpp cli/Info.cpp cli/Add.cpp)
