@@ -22,6 +22,7 @@ file(WRITE "$ENV{QILN_HOME}/signing.key" "07070707070707070707070707070707070707
 
 qiln(shop test)
 expect("ok      showsCents")
+expect("ok      addsUpOverTicks")
 expect("ok      greetsByName")
 qiln(shop test)
 expect("> :core:test UP-TO-DATE")

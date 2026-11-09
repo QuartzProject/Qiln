@@ -215,10 +215,13 @@ bool setLimits(HostCall& call, void* user) {
     std::int64_t fuel = call.args[1].i;
     std::int64_t memory = call.args[2].i;
     std::int64_t depth = call.args[3].i;
-    if (fuel < 1000 || fuel > 1'000'000'000'000 || memory < 1 || memory > 4096 || depth < 16 || depth > 1'000'000) {
-        return fail(call, "limits: fuel from 1000 to 10^12, memoryMiB from 1 to 4096, maxDepth from 16 to 10^6");
+    std::int64_t ticks = call.args[4].i;
+    if (fuel < 1000 || fuel > 1'000'000'000'000 || memory < 1 || memory > 4096 || depth < 16 || depth > 1'000'000 ||
+        ticks < 0) {
+        return fail(call, "limits: fuel from 1000 to 10^12, memoryMiB from 1 to 4096, maxDepth from 16 to 10^6, "
+                          "testTicks from 0");
     }
-    project(call, user).limits = {fuel, memory, depth};
+    project(call, user).limits = {fuel, memory, depth, ticks};
     return true;
 }
 

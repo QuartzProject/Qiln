@@ -42,6 +42,7 @@ struct Limits {
     std::int64_t fuel = 100'000'000;
     std::int64_t memoryMiB = 64;
     std::int64_t maxDepth = 4096;
+    std::int64_t testTicks = 1'000'000; // the virtual tick a `suspend` test may reach; 0 is no limit
 };
 
 struct ProjectModel {

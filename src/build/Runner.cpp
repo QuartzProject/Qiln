@@ -2,6 +2,10 @@
 
 #include "build/Console.hpp"
 
+#if QILN_TICK_SCHEDULER
+#include "dap/Scheduler.hpp"
+#endif
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -122,6 +126,32 @@ private:
     std::vector<std::unique_ptr<Sandbox>> sandboxes_;
 };
 
+// A `suspend` test runs as a task on the virtual tick clock of `quartz test` (core D213, D214).
+std::expected<void, std::string> runTask(Sandbox& sb, std::uint32_t function, std::int64_t tickLimit) {
+#if QILN_TICK_SCHEDULER
+    quartz::dap::TickScheduler scheduler(sb);
+    auto r = scheduler.spawn(function);
+    while (r && r->kind != quartz::vm::TaskOutcome::Kind::Done) {
+        if (tickLimit > 0 && scheduler.pending().front().wake > static_cast<std::uint64_t>(tickLimit)) {
+            scheduler.cancelAll();
+            return std::unexpected(std::format("still running after {} ticks (Limits.testTicks)", tickLimit));
+        }
+        r = *scheduler.next();
+    }
+    return r.transform([](const quartz::vm::TaskOutcome&) {}).transform_error(&quartz::vm::Trap::describe);
+#else
+    (void)sb, (void)function, (void)tickLimit;
+    return std::unexpected("suspend tests need a Quartz core that exports its tick scheduler");
+#endif
+}
+
+std::expected<void, std::string> runTest(Sandbox& sb, std::uint32_t function, std::int64_t tickLimit) {
+    if (sb.program().functions[function].isSuspend) {
+        return runTask(sb, function, tickLimit);
+    }
+    return sb.call(function, {}).transform([](const quartz::vm::Slot&) {}).transform_error(&quartz::vm::Trap::describe);
+}
+
 } // namespace
 
 std::expected<bool, std::string> runTests(const Compiled& compiled, const Limits& limits, std::string_view filter) {
@@ -144,9 +174,9 @@ std::expected<bool, std::string> runTests(const Compiled& compiled, const Limits
             return std::unexpected(l.error());
         }
         auto start = std::chrono::steady_clock::now();
-        auto started = sb.start();
-        auto r = started ? sb.call(a.function, {})
-                         : std::expected<quartz::vm::Slot, quartz::vm::Trap>(std::unexpected(started.error()));
+        auto r = sb.start().transform_error(&quartz::vm::Trap::describe).and_then([&] {
+            return runTest(sb, a.function, limits.testTicks);
+        });
         double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         if (r) {
             ++passed;
@@ -154,7 +184,7 @@ std::expected<bool, std::string> runTests(const Compiled& compiled, const Limits
             continue;
         }
         ++failed;
-        say(std::format("  FAILED  {}: {}", name, r.error().describe()));
+        say(std::format("  FAILED  {}: {}", name, r.error()));
         if (!printed.empty()) {
             printed.pop_back();
             say(printed);

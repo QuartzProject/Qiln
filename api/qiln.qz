@@ -48,6 +48,8 @@ pub struct Limits {
     fuel: int = 100000000
     memoryMiB: int = 64
     maxDepth: int = 4096
+    /// The virtual tick a `suspend` test may reach before it fails as still running; 0 is no limit.
+    testTicks: int = 1000000
 }
 
 impl Project {
@@ -95,7 +97,7 @@ impl Project {
     }
 
     pub fn limits(self, l: Limits) {
-        self.setLimits(l.fuel, l.memoryMiB, l.maxDepth)
+        self.setLimits(l.fuel, l.memoryMiB, l.maxDepth, l.testTicks)
     }
 }
 

@@ -157,7 +157,8 @@ std::expected<Hash32, std::string> TaskRunner::fingerprint(const ProjectModel& p
         h.add(r.rule).add(std::to_string(static_cast<int>(r.level)));
     }
     if (task == "test") {
-        h.add(std::format("{} {} {}", p.limits.fuel, p.limits.memoryMiB, p.limits.maxDepth)).add(options_.testFilter);
+        const Limits& l = p.limits;
+        h.add(std::format("{} {} {} {}", l.fuel, l.memoryMiB, l.maxDepth, l.testTicks)).add(options_.testFilter);
     }
     for (const quartz::SourceInput& in : (*set)->inputs) {
         h.add(in.name).add(in.text).add(in.dependency ? "dependency" : "own");

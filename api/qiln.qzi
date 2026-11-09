@@ -84,7 +84,7 @@ impl Project {
     /// A function other packages may call when this is a host plugin.
     fn addExport(self, function: str)
     fn addCapability(self, name: str)
-    fn setLimits(self, fuel: int, memoryMiB: int, maxDepth: int)
+    fn setLimits(self, fuel: int, memoryMiB: int, maxDepth: int, testTicks: int)
     /// The task called `name`, created on first use.
     fn task(self, name: str) -> Task
     /// Records that a build plugin requested in `settings.qz` configures this project.

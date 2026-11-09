@@ -11,7 +11,7 @@ namespace {
 namespace bin = quartz::ir::bin;
 
 constexpr std::string_view kMagic = "QLNC";
-constexpr std::uint64_t kVersion = 3;
+constexpr std::uint64_t kVersion = 4;
 constexpr std::uint64_t kMaxItems = 1u << 16;
 
 class Out {
@@ -111,6 +111,7 @@ void writeProject(Out& o, const ProjectModel& p) {
     o.n(static_cast<std::uint64_t>(p.limits.fuel));
     o.n(static_cast<std::uint64_t>(p.limits.memoryMiB));
     o.n(static_cast<std::uint64_t>(p.limits.maxDepth));
+    o.n(static_cast<std::uint64_t>(p.limits.testTicks));
     o.list(p.plugins);
     o.map(p.options);
     o.n(p.tasks.size());
@@ -165,6 +166,7 @@ ProjectModel readProject(In& in) {
     p.limits.fuel = static_cast<std::int64_t>(in.n());
     p.limits.memoryMiB = static_cast<std::int64_t>(in.n());
     p.limits.maxDepth = static_cast<std::int64_t>(in.n());
+    p.limits.testTicks = static_cast<std::int64_t>(in.n());
     p.plugins = in.list();
     p.options = in.map();
     for (std::uint64_t i = 0, c = in.count(); i < c && !in.failed(); ++i) {

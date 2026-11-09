@@ -7,3 +7,15 @@ fn showsCents() {
         panic("got {p.show()}")
     }
 }
+
+@test
+suspend fn addsUpOverTicks() {
+    var total = Price.of(0)
+    for _ in 0..3 {
+        wait 20.ticks
+        total = Price.of(total.cents + 150)
+    }
+    if total.show() != "4.50 EUR" {
+        panic("got {total.show()}")
+    }
+}
