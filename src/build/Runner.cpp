@@ -1,10 +1,7 @@
 #include "build/Runner.hpp"
 
 #include "build/Console.hpp"
-
-#if QILN_TICK_SCHEDULER
-#include "dap/Scheduler.hpp"
-#endif
+#include "vm/Scheduler.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -128,21 +125,17 @@ private:
 
 // A `suspend` test runs as a task on the virtual tick clock of `quartz test` (core D213, D214).
 std::expected<void, std::string> runTask(Sandbox& sb, std::uint32_t function, std::int64_t tickLimit) {
-#if QILN_TICK_SCHEDULER
-    quartz::dap::TickScheduler scheduler(sb);
+    quartz::vm::TickScheduler scheduler(sb);
     auto r = scheduler.spawn(function);
     while (r && r->kind != quartz::vm::TaskOutcome::Kind::Done) {
-        if (tickLimit > 0 && scheduler.pending().front().wake > static_cast<std::uint64_t>(tickLimit)) {
+        auto wake = scheduler.nextWake();
+        if (tickLimit > 0 && wake && *wake > static_cast<std::uint64_t>(tickLimit)) {
             scheduler.cancelAll();
             return std::unexpected(std::format("still running after {} ticks (Limits.testTicks)", tickLimit));
         }
         r = *scheduler.next();
     }
     return r.transform([](const quartz::vm::TaskOutcome&) {}).transform_error(&quartz::vm::Trap::describe);
-#else
-    (void)sb, (void)function, (void)tickLimit;
-    return std::unexpected("suspend tests need a Quartz core that exports its tick scheduler");
-#endif
 }
 
 std::expected<void, std::string> runTest(Sandbox& sb, std::uint32_t function, std::int64_t tickLimit) {
