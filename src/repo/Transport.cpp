@@ -224,8 +224,16 @@ std::expected<Response, std::string> request(const Location& repo, const std::st
     }
     Response r;
     std::string text = readText(headers).value_or("");
-    // After redirects and `100 Continue` the last status line is the answer.
-    std::size_t at = text.rfind("HTTP/");
+    // After redirects and `100 Continue` the last status line is the answer; a header such as `Server:` may also
+    // hold "HTTP/", so only a line that starts with it counts.
+    std::size_t at = std::string::npos;
+    for (std::size_t line = 0; line < text.size();) {
+        if (text.compare(line, 5, "HTTP/") == 0) {
+            at = line;
+        }
+        std::size_t end = text.find('\n', line);
+        line = end == std::string::npos ? text.size() : end + 1;
+    }
     std::size_t space = at == std::string::npos ? at : text.find(' ', at);
     if (space != std::string::npos && space + 4 <= text.size()) {
         std::from_chars(text.data() + space + 1, text.data() + space + 4, r.status);
