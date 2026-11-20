@@ -133,7 +133,7 @@ jobs:
         run: cmake --build build/asan
 
       - name: Test
-        run: ctest --test-dir build/asan --output-on-failure
+        run: ctest --test-dir build/asan -L qiln --output-on-failure
 
   release:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

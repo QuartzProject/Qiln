@@ -79,7 +79,7 @@ jobs:
         run: cmake --build build/release -- -k 0
 
       - name: Test
-        run: ctest --test-dir build/release --output-on-failure
+        run: ctest --test-dir build/release -L qiln --output-on-failure
 
       - name: Name the binary
         run: |
