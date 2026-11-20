@@ -59,7 +59,7 @@ jobs:
         with:
           job-summary: ''
           max-size: 500M
-          key: ${{ inputs.target }}
+          key: ${{ inputs.target }}-gcc15
 
       - name: Select the compiler
         run: .github/scripts/select-compiler.sh
