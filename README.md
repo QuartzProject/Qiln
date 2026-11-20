@@ -51,15 +51,22 @@ fn build(p: Project) {
 Dependencies, workspaces, plugins and publishing are covered in the [Qiln chapter](https://quartzlang.org/docs/qiln.html)
 of the Quartz book.
 
+## Download
+
+Every commit to `main` publishes a release, numbered `0.<n>` until 1.0, on the
+[releases page](https://github.com/QuartzProject/Qiln/releases). Each asset is the `qiln` executable for one platform
+(`qiln-<version>-<Platform>-<arch>`), with a `SHA256SUMS` file beside them. Put it on your `PATH` as `qiln`;
+`qiln --version` prints what you have.
+
 ## Building
 
 ```bash
-cmake --preset release
+cmake --preset release -DQILN_QUARTZ_SOURCE=<Quartz sources>
 cmake --build build/release
 ```
 
-Needs Clang with C++23, CMake 3.28+, Ninja and a checkout of [Quartz](https://github.com/QuartzProject/Quartz) next to
-this one (or `-DQILN_QUARTZ_SOURCE=<path>`).
+Needs Clang with C++23, CMake 3.28+, Ninja and the sources of [Quartz](https://github.com/QuartzProject/Quartz), or an
+installed Quartz that CMake can find.
 
 ## License
 
