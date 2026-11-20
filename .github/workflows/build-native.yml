@@ -1,0 +1,111 @@
+name: Build native
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: The GitHub-hosted runner
+        type: string
+        required: true
+      target:
+        description: The release artifact target
+        type: string
+        required: true
+      version:
+        description: The planned version to stamp
+        type: string
+        required: true
+      quartz-ref:
+        description: The Quartz release to build against
+        type: string
+        required: true
+      quartz-version:
+        description: Its version
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: ${{ startsWith(inputs.target, 'Windows') && 'msys2 {0}' || 'bash' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: QuartzProject/Quartz
+          ref: ${{ inputs.quartz-ref }}
+          path: .deps/quartz
+
+      - name: Install the MinGW toolchain
+        if: startsWith(inputs.target, 'Windows')
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ inputs.target == 'Windows-arm64' && 'CLANGARM64' || 'CLANG64' }}
+          update: true
+          pacboy: >-
+            clang:p lld:p cmake:p ninja:p
+
+      - name: Install ccache
+        if: ${{ !startsWith(inputs.target, 'Windows') }}
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          job-summary: ''
+          max-size: 500M
+          key: ${{ inputs.target }}
+
+      - name: Select the compiler
+        run: .github/scripts/select-compiler.sh
+
+      - name: Configure
+        run: |
+          launcher=""
+          if command -v ccache >/dev/null; then
+              launcher="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+          fi
+          quartz="$(pwd -W 2>/dev/null || pwd)/.deps/quartz"
+          eval cmake --preset release -DCMAKE_BUILD_TYPE=Release "-DQILN_VERSION=${{ inputs.version }}" \
+            "-DQILN_QUARTZ_SOURCE=$quartz" "-DQUARTZ_VERSION=${{ inputs.quartz-version }}" \
+            -DQUARTZ_COMPILER=OFF -DQUARTZ_JVM=OFF -DQUARTZ_ANDROID=OFF $launcher $QILN_CMAKE_ARGS
+
+      - name: Build
+        run: cmake --build build/release -- -k 0
+
+      - name: Test
+        run: ctest --test-dir build/release --output-on-failure
+
+      - name: Name the binary
+        run: |
+          mkdir dist
+          if [ -f build/release/src/qiln.exe ]; then
+              cp build/release/src/qiln.exe "dist/qiln-${{ inputs.version }}-${{ inputs.target }}.exe"
+          else
+              cp build/release/src/qiln "dist/qiln-${{ inputs.version }}-${{ inputs.target }}"
+              strip dist/* 2>/dev/null || true
+          fi
+          dist/qiln-* --version | grep -F "qiln ${{ inputs.version }}"
+
+      - name: Check the macOS binary needs only the system
+        if: startsWith(inputs.target, 'macOS')
+        run: |
+          otool -L dist/qiln-*
+          if otool -L dist/qiln-* | grep -q -e /opt/homebrew -e /usr/local/opt; then exit 1; fi
+
+      - name: Check the Windows binary needs only the system
+        if: startsWith(inputs.target, 'Windows')
+        run: |
+          if objdump -p dist/qiln-*.exe | grep 'DLL Name' | grep -i -e 'libc++' -e 'libwinpthread' -e 'libunwind'; then exit 1; fi
+
+      - name: Upload the binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: qiln-${{ inputs.target }}
+          path: dist/
+          if-no-files-found: error

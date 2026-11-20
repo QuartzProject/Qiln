@@ -1,0 +1,156 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      quartz-ref: ${{ steps.quartz.outputs.quartz-ref }}
+      quartz-version: ${{ steps.quartz.outputs.quartz-version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Plan the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
+              .github/scripts/plan-version.sh release
+          else
+              .github/scripts/plan-version.sh ci
+          fi
+
+      - name: Pick the Quartz release
+        id: quartz
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/plan-quartz.sh
+
+  linux:
+    name: ${{ matrix.target }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: Linux-x64
+          - os: ubuntu-24.04-arm
+            target: Linux-arm64
+    uses: ./.github/workflows/build-native.yml
+    with:
+      runner: ${{ matrix.os }}
+      target: ${{ matrix.target }}
+      version: ${{ needs.plan.outputs.version }}
+      quartz-ref: ${{ needs.plan.outputs.quartz-ref }}
+      quartz-version: ${{ needs.plan.outputs.quartz-version }}
+
+  windows:
+    name: ${{ matrix.target }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            target: Windows-x64
+          - os: windows-11-arm
+            target: Windows-arm64
+    uses: ./.github/workflows/build-native.yml
+    with:
+      runner: ${{ matrix.os }}
+      target: ${{ matrix.target }}
+      version: ${{ needs.plan.outputs.version }}
+      quartz-ref: ${{ needs.plan.outputs.quartz-ref }}
+      quartz-version: ${{ needs.plan.outputs.quartz-version }}
+
+  macos:
+    name: ${{ matrix.target }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: macOS-arm64
+    uses: ./.github/workflows/build-native.yml
+    with:
+      runner: ${{ matrix.os }}
+      target: ${{ matrix.target }}
+      version: ${{ needs.plan.outputs.version }}
+      quartz-ref: ${{ needs.plan.outputs.quartz-ref }}
+      quartz-version: ${{ needs.plan.outputs.quartz-version }}
+
+  sanitize:
+    name: Sanitizers
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: QuartzProject/Quartz
+          ref: ${{ needs.plan.outputs.quartz-ref }}
+          path: .deps/quartz
+
+      - name: Install ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          job-summary: ''
+          max-size: 400M
+          key: sanitize
+
+      - name: Select the compiler
+        run: .github/scripts/select-compiler.sh
+
+      - name: Configure with the address and undefined sanitizers
+        run: >-
+          cmake --preset asan -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23
+          "-DQILN_QUARTZ_SOURCE=$PWD/.deps/quartz" -DQUARTZ_COMPILER=OFF -DQUARTZ_JVM=OFF
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: cmake --build build/asan
+
+      - name: Test
+        run: ctest --test-dir build/asan --output-on-failure
+
+  release:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: [plan, linux, windows, macos, sanitize]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: qiln-*
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/publish-release.sh "${{ needs.plan.outputs.version }}" "$GITHUB_SHA" artifacts
