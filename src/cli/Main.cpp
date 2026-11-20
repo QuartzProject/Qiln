@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <format>
+#include <string_view>
 
 namespace {
 
@@ -95,6 +96,10 @@ std::optional<Args> parse(int argc, char** argv) {
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 2 && std::string_view(argv[1]) == "--version") {
+        std::printf("qiln %s (quartz %s)\n", QILN_VERSION, QILN_QUARTZ_VERSION);
+        return 0;
+    }
     auto args = parse(argc, argv);
     if (!args) {
         return usage(2);

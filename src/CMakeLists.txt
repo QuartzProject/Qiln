@@ -23,7 +23,7 @@ add_library(qiln_lib STATIC ${QILN_API_HEADER}
     cli/Init.cpp cli/Info.cpp cli/Add.cpp)
 target_include_directories(qiln_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(qiln_lib PUBLIC qiln_options qiln_quartz)
-target_compile_definitions(qiln_lib PUBLIC QILN_VERSION="${PROJECT_VERSION}"
+target_compile_definitions(qiln_lib PUBLIC QILN_VERSION="${QILN_VERSION}"
     QILN_QUARTZ_VERSION="${QILN_QUARTZ_VERSION}")
 
 add_executable(qiln cli/Main.cpp)
